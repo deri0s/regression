@@ -1,0 +1,201 @@
+\documentclass[a4paper, 11pt]{article}
+\usepackage{graphicx}\usepackage{amsmath}\usepackage{float}
+\usepackage[inner=1in, top=1in, bottom=1in]{geometry}
+\usepackage{amsfonts}
+\usepackage{color,soul}
+\DeclareMathOperator{\Cov}{Cov}
+\DeclareMathOperator{\Std}{Std}
+\DeclareMathOperator{\Var}{Var}
+\DeclareMathOperator{\E}{E}
+\DeclareMathOperator{\rank}{rank}
+\DeclareMathOperator{\nul}{nul}
+\DeclareMathOperator{\diag}{diag}
+\DeclareMathOperator{\Cor}{Cor}
+\DeclareMathOperator{\Tr}{Tr}
+\DeclareMathOperator{\adj}{adj}
+\DeclareMathOperator{\x}{\boldsymbol{x}}
+\DeclareMathOperator{\bu}{\boldsymbol{u}}
+\DeclareMathOperator{\y}{\boldsymbol{y}}
+\DeclareMathOperator{\z}{\boldsymbol{z}}
+\DeclareMathOperator{\X}{\boldsymbol{X}}
+\DeclareMathOperator{\Y}{\boldsymbol{Y}}
+\DeclareMathOperator{\Z}{\boldsymbol{Z}}
+\DeclareMathOperator{\pa}{\boldsymbol{\theta}}
+\DeclareMathOperator{\Pa}{\boldsymbol{\Theta}}
+\DeclareMathOperator{\bmu}{\boldsymbol{\mu}}
+\DeclareMathOperator{\bSigma}{\boldsymbol{\Sigma}}
+\DeclareMathOperator{\A}{\boldsymbol{A}}
+\DeclareMathOperator{\bphi}{\boldsymbol{\phi}}
+\DeclareMathOperator{\bPhi}{\boldsymbol{\Phi}}
+
+\begin{document}
+
+\title{Multi-output linear regression}
+\author{P.L.Green}
+\maketitle
+
+\section{Abstract}
+The maths behind multi-output linear regression. 
+
+\section{Problem statement}
+We have $N$ input-output pairs $\{ (\x_n, \y_n) \}_{n=1}^N$ where $\y_n \in \mathbb{R}^K$. We propose the model
+
+\begin{equation}
+	y_{n,i} = \pa^T_i \bphi (\x_n)
+\end{equation}
+where $\bphi$ is a $D$-dimensional basis function. In general, we are therefore proposing that
+
+\begin{equation}
+	\left(
+		\begin{array}{c}
+			y_{n,1} \\
+			\vdots \\
+			y_{n,K}
+		\end{array}
+	\right) = 
+	\left[
+		\begin{array}{c}
+			\pa^T_1 \\
+			\vdots \\
+			\pa^T_K
+		\end{array}
+	\right] \bphi(\x_n)
+\end{equation}
+which we write as
+
+\begin{equation}
+	\y_n = \Pa^T \bphi(\x_n)
+\end{equation}
+
+\section{Least-squares solution}
+Objective function:
+
+\begin{equation}
+	J = \frac{1}{2} \sum_{n=1}^N \sum_{i=1}^K 
+	\left(
+		y_{n,i} - \pa_i^T \bphi_n
+	\right)^2
+\end{equation}
+
+\begin{equation}
+	= \frac{1}{2} \sum_n \sum_i \left(
+		-2 y_{n,i} \pa_i^T \bphi_n + \pa_i^T \bphi_n \bphi_n^T \pa_i
+	\right) + \text{const.}
+\end{equation}
+where we have adopted the notation $\bphi_n \equiv \bphi(\x_n)$. Through standard vector calculus we can show that
+
+\begin{equation}
+	\frac{\partial J}{\partial \pa_j} = -\sum_n y_{n,j} \bphi_n + 
+	\left[
+		\sum_n \bphi_n \bphi_n^T
+	\right] \pa_j
+\end{equation}
+With the aim of evaluating
+
+\begin{equation}
+	\frac{\partial J}{\partial \Pa} = 
+	\left[
+		\begin{array}{ccc}
+			\frac{\partial J}{\partial \pa_1} & 
+			\frac{\partial J}{\partial \pa_2} & 
+			... \\
+		\end{array}
+	\right]
+\end{equation}
+we can now write that
+
+\begin{equation}
+	\frac{\partial J}{\partial \Pa} = 
+	\left[
+		\begin{array}{ccc}
+			- \sum_n y_{n,1} \bphi_n + \left[ \sum_n \bphi_n \bphi_n^T \right] \pa_1 &
+			- \sum_n y_{n,2} \bphi_n + \left[ \sum_n \bphi_n \bphi_n^T \right] \pa_2 & 
+			... \\
+		\end{array}
+	\right]
+\end{equation}
+
+\begin{equation}
+	= - \sum_n \left[
+		\begin{array}{ccc}
+			y_{n,1} \bphi_n & 
+			y_{n,2} \bphi_n & 
+			... \\
+		\end{array}
+	\right] + 
+	\left[ \sum_n \bphi_n \bphi_n^T \right] 
+	\underbrace{
+	\left[
+		\begin{array}{ccc}
+			\pa_1 & \pa_2 & ... \\
+		\end{array}
+	\right]
+	}_{\Pa}
+\end{equation}
+Consequently, defining
+
+\begin{equation}
+	\Y = \left[
+		\begin{array}{c}
+			\y_1^T \\
+			\vdots \\
+			\y_N^T \\
+		\end{array}
+	\right] \qquad
+	\bPhi = \left[
+		\begin{array}{c}
+			\bphi_1^T \\
+			\vdots \\
+			\bphi_N^T \\
+		\end{array}
+	\right]
+\end{equation}
+we can write that
+
+\begin{equation}
+	\frac{\partial J}{\partial \Pa} = 
+	-\bPhi^T \Y + \bPhi^T\bPhi \Pa
+\end{equation}
+Setting the above expression equal to zero and solving for the optimal parameter matrix we obtain
+
+\begin{equation}
+	\Pa^* = \left[ \bPhi^T \bPhi \right]^{-1} \bPhi^T \Y
+\end{equation}
+
+\section{Regularised least-squares solution}
+If we use the classic regularisation term that is employed in ridge-regression then the objective function is 
+
+\begin{equation}
+	J = \frac{1}{2} \sum_{n=1}^N \sum_{i=1}^K 
+	\left(
+		y_{n,i} - \pa_i^T \bphi_n
+	\right)^2 + \frac{\lambda}{2} \sum_{i=1}^K \pa_i^T \pa_i
+\end{equation}
+then, following a procedure similar to the previous section, we can show that
+
+\begin{equation}
+	\frac{\partial J}{\partial \pa_j} = 
+		- \sum_n y_{n,j} \bphi_n + \left(
+			\left[
+				\sum_n \bphi_n \bphi_n^T
+			\right] + \boldsymbol{I} \lambda
+		\right) \pa_j
+\end{equation}
+and so
+
+\begin{equation}
+	\frac{\partial J}{\partial \Pa} = - \bPhi^T\Y + 
+	\left[
+		\bPhi^T\bPhi + \boldsymbol{I} \lambda
+	\right]^{-1} \Pa
+\end{equation}
+which implies that our optimal parameters are given by
+
+\begin{equation}
+	\Pa^* = \left[
+		\bPhi^T \bPhi + \boldsymbol{I}\lambda
+	\right]^{-1} \bPhi^T \Y
+\end{equation}
+
+
+\end{document} 

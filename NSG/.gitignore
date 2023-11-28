@@ -1,0 +1,19 @@
+
+# Ignore all files in directory __pycache__/
+__pycache__/
+
+# Ignore text files (tag data is too large to upload) except for those needed in tests
+*.txt
+!TagID 135 - FT_F160.F_CV From 2020-03-22 00.00.00 to 2021-01-04 00.00.00.txt
+
+# Ignore files created when powerpoint is open
+~$*.pptx
+
+# Ignore files make by LaTeX
+*.synctex.gz
+*.log
+*.aux
+*.bbl
+*.blg
+*.spl
+*.toc
