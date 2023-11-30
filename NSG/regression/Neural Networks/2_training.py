@@ -1,10 +1,11 @@
-
 import sys
 sys.path.insert(0, 'C:\Diego\PhD\Code\phdCode')
+import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler as ss
+from sklearn.model_selection import train_test_split
 from NSG import data_processing_methods as dpm
 from NSG import *
 
@@ -12,7 +13,8 @@ import tensorflow as tf
 from tensorflow import keras
 
 # NSG post processes data location
-file = 'NSG/regression/Neural Networks/NSG_training_val_data.xlsx'
+file = str(os.getcwd())
+file = 'NSG_data.xlsx'
 
 # Training df
 X_df = pd.read_excel(file, sheet_name='X_training')
@@ -23,7 +25,7 @@ t_df = pd.read_excel(file, sheet_name='time')
 # Pre-Process training data
 X_train, y_train, N, D, max_lag, time_lags = dpm.align_arrays(X_df, y_df, t_df)
 X = ss().fit(X_train).transform(X_train)
-y = ss().fit(y_train).transform(y_train)
+y = ss().fit(np.vstack(y_train)).transform(np.vstack(y_train))
 
 # Process raw targets
 # Just removes the first max_lag points from the date_time array.
@@ -56,26 +58,20 @@ model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.01),
 start = 0
 end = 1000
 N = start - end
-X_train = X[start:end]
-y_train = y[start:end]
+X_train, X_test, y_train, y_test = train_test_split(X[start:end], y[start:end], test_size=0.15)
 
-batchsize = 850
+batchsize = 4
 epoch = 400
 val_split = 0.15
 
 trained = model.fit(X_train, y_train, batch_size=batchsize, epochs=epoch, verbose=1, validation_split=val_split)
 
-# Model Validation
-start = 0
-end = 1000
-N = start - end
-X_test = 
 print("Evaluation against the test data \n")
-model.evaluate(X_val, y_val_stand)
+model.evaluate(X_test, y_test)
 
 # Plot model accuracy after each eppch
 pd.DataFrame(trained.history).plot(figsize=(8, 5))
 plt.title("Accuracy improvement with epochs")
 
 # Save the model
-model.save("2HL_68_8")
+# model.save("2HL_68_8")

@@ -1,4 +1,5 @@
 import sys
+import os
 import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
@@ -102,7 +103,7 @@ assert set(X_df.columns) == set(to_retain)
 #                                                Y_std)
 
 # Save final training and validation data
-writer = pd.ExcelWriter('NSG\\regression\\Neural Networks\\NSG_data.xlsx')
+writer = pd.ExcelWriter(str(os.getcwd())+'\\NSG_data.xlsx')
 
 # Save to spreadsheet
 X_df.to_excel(writer, sheet_name='X_training', index=False)
