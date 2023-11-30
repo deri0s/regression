@@ -32,44 +32,28 @@ to_retain = ['10091 Furnace Load',
 # ----------------------------------------------------------------------------
 
 # Initialise empty data frames
-X_df, X_df_test = pd.DataFrame(), pd.DataFrame()
-Y_df, Y_df_test = pd.DataFrame(), pd.DataFrame()
-Y_raw_df, Y_raw_df_test = pd.DataFrame(), pd.DataFrame()
+X_df, Y_df, Y_raw_df = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
 # Loop over available files of post-processed data
 for i in range(1, 5):
     file_name = ('NSG\Input Post-Processing ' + str(i) + ' ' +
                  scanner + '.xlsx')
 
-    # The first 3 files are appended to become a single training data-frame
-    if i < 4:
-        X_df = X_df._append(pd.read_excel(file_name,
-                                         sheet_name='input_data'))
-        Y_df = Y_df._append(pd.read_excel(file_name,
-                                         sheet_name='output_data'))
-        Y_raw_df = Y_raw_df._append(pd.read_excel(file_name,
-                                   sheet_name='raw_output_data'))
+    X_df = X_df._append(pd.read_excel(file_name,
+                                        sheet_name='input_data'))
+    Y_df = Y_df._append(pd.read_excel(file_name,
+                                        sheet_name='output_data'))
+    Y_raw_df = Y_raw_df._append(pd.read_excel(file_name,
+                                sheet_name='raw_output_data'))
 
-    # The fourth file is used to create the testing data-frame
-    if i == 4:
-        X_df_test = X_df_test._append(pd.read_excel(file_name,
-                                     sheet_name='input_data'))
-        Y_df_test = Y_df_test._append(pd.read_excel(file_name,
-                                     sheet_name='output_data'))
-        Y_raw_df_test = Y_raw_df_test._append(pd.read_excel(file_name,
-                                             sheet_name='raw_output_data'))
-        
 # Extract time lags from final file (should be the same for all)
 T_df = pd.read_excel('NSG\Input Post-Processing 4 ISRA timelags.xlsx',
                      sheet_name='time_lags')
 
 # Check data frames are the correct size and have the same column names
-assert np.all(X_df.columns == X_df_test.columns)
 assert np.all(X_df.columns == T_df.columns)
 assert len(X_df) == len(Y_df)
 assert len(Y_df) == len(Y_raw_df)
-assert len(X_df_test) == len(Y_df_test)
-assert len(Y_df_test) == len(Y_raw_df_test)
 
 # ----------------------------------------------------------------------------
 # REMOVE INPUTS WE ARE NOT GOING TO USE
@@ -79,7 +63,6 @@ input_names = X_df.columns
 for name in input_names:
     if name not in to_retain:
         X_df.drop(columns=name, inplace=True)
-        X_df_test.drop(columns=name, inplace=True)
         T_df.drop(columns=name, inplace=True)
 
 # Check that the data frames contain the correct number of inputs
@@ -88,55 +71,44 @@ assert len(X_df.columns) == len(to_retain)
 # Check that the data frame input names match those in to_retain
 assert set(X_df.columns) == set(to_retain)
 
-# ----------------------------------------------------------------------------
-# PRE-PROCESSING
-# ----------------------------------------------------------------------------
+# # ----------------------------------------------------------------------------
+# # PRE-PROCESSING
+# # ----------------------------------------------------------------------------
 
-# Finding fault density mean and std (at training points)
-Y_mean = np.mean(Y_df['furnace_faults'].values)
-Y_std = np.std(Y_df['furnace_faults'].values)
+# # Finding fault density mean and std (at training points)
+# Y_mean = np.mean(Y_df['furnace_faults'].values)
+# Y_std = np.std(Y_df['furnace_faults'].values)
 
-# Standardise training inputs
-for i in range(np.shape(X_df)[1]):
-    tag_name = X_df.columns[i]
+# # Standardise training inputs
+# for i in range(np.shape(X_df)[1]):
+#     tag_name = X_df.columns[i]
 
-    # Get the inputs statistics to use in the training and
-    # testing data standardisation
-    X_mean = np.mean(X_df.iloc[:, i])
-    X_std = np.std(X_df.iloc[:, i])
+#     # Get the inputs statistics to use in the training and
+#     # testing data standardisation
+#     X_mean = np.mean(X_df.iloc[:, i])
+#     X_std = np.std(X_df.iloc[:, i])
 
-    # Re-write X_df now with standardise data (at training points)
-    X_df[tag_name] = dpm.standardise(X_df.iloc[:, i],
-                                     X_mean,
-                                     X_std)
-    # Re-write X_df_test now with standardise data (at training points)
-    X_df_test[tag_name] = dpm.standardise(X_df_test.iloc[:, i],
-                                          X_mean,
-                                          X_std)
+#     # Re-write X_df now with standardise data (at training points)
+#     X_df[tag_name] = dpm.standardise(X_df.iloc[:, i],
+#                                      X_mean,
+#                                      X_std)
     
-# Get unstandardised targets
-Y_df_stand = Y_df.copy()
+# # Get unstandardised targets
+# Y_df_stand = Y_df.copy()
 
-# Standardise training targets
-Y_df_stand['furnace_faults'] = dpm.standardise(Y_df['furnace_faults'].values,
-                                               Y_mean,
-                                               Y_std)
+# # Standardise training targets
+# Y_df_stand['furnace_faults'] = dpm.standardise(Y_df['furnace_faults'].values,
+#                                                Y_mean,
+#                                                Y_std)
 
-# Standardise testing targets
-Y_df_test['furnace_faults'] = dpm.standardise(Y_df_test['furnace_faults'].values,
-                                              Y_mean,
-                                              Y_std)
 # Save final training and validation data
-writer = pd.ExcelWriter('NSG\\regression\\Neural Networks\\NSG_training_val_data.xlsx')
+writer = pd.ExcelWriter('NSG\\regression\\Neural Networks\\NSG_data.xlsx')
 
-# # Save to spreadsheet
+# Save to spreadsheet
 X_df.to_excel(writer, sheet_name='X_training', index=False)
-Y_df_stand.to_excel(writer, sheet_name='y_training', index=False)
-Y_df.to_excel(writer, sheet_name='y_training_unstand', index=False)
+# Y_df_stand.to_excel(writer, sheet_name='y_training', index=False)
+Y_df.to_excel(writer, sheet_name='y_training', index=False)
 Y_raw_df.to_excel(writer, sheet_name='y_raw_training', index=False)
-X_df_test.to_excel(writer, sheet_name='X_val', index=False)
-Y_raw_df_test.to_excel(writer, sheet_name='y_raw_val', index=False)
-Y_df_test.to_excel(writer, sheet_name='y_val', index=False)
 T_df.to_excel(writer, sheet_name='time', index=False)
 
 writer._save()
