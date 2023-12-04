@@ -31,24 +31,24 @@ to_retain = ['10091 Furnace Load',
 # ----------------------------------------------------------------------------
 # LOAD DATA FOR TRANING AND TESTING
 # ----------------------------------------------------------------------------
-
+print("\n current working directory: ", os.getcwd()+"\n")
 # Initialise empty data frames
 X_df, Y_df, Y_raw_df = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
 # Loop over available files of post-processed data
 for i in range(1, 5):
-    file_name = ('NSG\Input Post-Processing ' + str(i) + ' ' +
+    file_name = ('Input Post-Processing ' + str(i) + ' ' +
                  scanner + '.xlsx')
 
     X_df = X_df._append(pd.read_excel(file_name,
-                                        sheet_name='input_data'))
+                                      sheet_name='input_data'))
     Y_df = Y_df._append(pd.read_excel(file_name,
-                                        sheet_name='output_data'))
+                                      sheet_name='output_data'))
     Y_raw_df = Y_raw_df._append(pd.read_excel(file_name,
-                                sheet_name='raw_output_data'))
+                                              sheet_name='raw_output_data'))
 
-# Extract time lags from final file (should be the same for all)
-T_df = pd.read_excel('NSG\Input Post-Processing 4 ISRA timelags.xlsx',
+# Extract time lags from final file
+T_df = pd.read_excel('Input Post-Processing 4 ISRA timelags.xlsx',
                      sheet_name='time_lags')
 
 # Check data frames are the correct size and have the same column names
@@ -71,36 +71,6 @@ assert len(X_df.columns) == len(to_retain)
 
 # Check that the data frame input names match those in to_retain
 assert set(X_df.columns) == set(to_retain)
-
-# # ----------------------------------------------------------------------------
-# # PRE-PROCESSING
-# # ----------------------------------------------------------------------------
-
-# # Finding fault density mean and std (at training points)
-# Y_mean = np.mean(Y_df['furnace_faults'].values)
-# Y_std = np.std(Y_df['furnace_faults'].values)
-
-# # Standardise training inputs
-# for i in range(np.shape(X_df)[1]):
-#     tag_name = X_df.columns[i]
-
-#     # Get the inputs statistics to use in the training and
-#     # testing data standardisation
-#     X_mean = np.mean(X_df.iloc[:, i])
-#     X_std = np.std(X_df.iloc[:, i])
-
-#     # Re-write X_df now with standardise data (at training points)
-#     X_df[tag_name] = dpm.standardise(X_df.iloc[:, i],
-#                                      X_mean,
-#                                      X_std)
-    
-# # Get unstandardised targets
-# Y_df_stand = Y_df.copy()
-
-# # Standardise training targets
-# Y_df_stand['furnace_faults'] = dpm.standardise(Y_df['furnace_faults'].values,
-#                                                Y_mean,
-#                                                Y_std)
 
 # Save final training and validation data
 writer = pd.ExcelWriter(str(os.getcwd())+'\\NSG_data.xlsx')

@@ -40,46 +40,47 @@ date_time = dpm.adjust_time_lag(y_df['Time stamp'].values,
                                 to_remove=max_lag)
 
 """
-Neural Network Training
+Changing the batch-size hyperparameter
 """
-# Architecture
-model = keras.models.Sequential()
-N_units1 = 64
-model.add(keras.layers.Dense(N_units1, name='hidden1', activation='softplus'))
-N_units2 = 8
-model.add(keras.layers.Dense(N_units2, name='hidden2', activation='softplus'))
-model.add(keras.layers.Dense(1, name='output'))
+def fit_model(X_train, y_train, B, epoch, val_split):
+    # Architecture
+    model = keras.models.Sequential()
+    N_units1 = 64
+    model.add(keras.layers.Dense(N_units1, name='hidden1', activation='softplus'))
+    N_units2 = 8
+    model.add(keras.layers.Dense(N_units2, name='hidden2', activation='softplus'))
+    model.add(keras.layers.Dense(1, name='output'))
 
-# Compilation
-model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),
-              loss='mean_absolute_error')
+    # Compilation
+    model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),
+                  loss='mean_absolute_error')
 
-# Model training
-start = 0
-end = 1000
-N = end - start
-assert N > 0
-X_train, X_test, y_train, y_test = train_test_split(X[start:end], y[start:end], test_size=0.2)
+    # Train and test data
+    start = 0
+    end = 1000
+    N = end - start
+    assert N > 0
+    X_train, X_test, y_train, y_test = train_test_split(X[start:end], y[start:end], test_size=0.2)
 
-batchsize = N
-epoch = 2000
+    trained = model.fit(X_train, y_train,
+                        batch_size=B, epochs=epoch, verbose=1, validation_split=val_split)
+
+    #Plot accuracy of the model after each epoch.
+    plt.figure()
+    plt.plot(trained.history['loss'], label='train')
+    plt.plot(trained.history['val_loss'], label='test')
+    plt.title("B="+str(B))
+    plt.xlabel("N of Epoch")
+    plt.ylabel("Error (MAE)")
+    plt.legend()
+
+# How the model error change with B?
+Bs = [1000, 500, 333]
+epoch = 400
 val_split = 0.2
 
-trained = model.fit(X_train, y_train,
-                    batch_size=batchsize, epochs=epoch, verbose=1, validation_split=val_split)
-
-#Plot accuracy of the model after each epoch.
-plt.figure()
-plt.plot(trained.history['loss'], label='train')
-plt.plot(trained.history['val_loss'], label='test')
-plt.title("Accuracy improvements with Epoch")
-plt.xlabel("N of Epoch")
-plt.ylabel("Error (MAE)")
-plt.legend()
+for i in range(len(Bs)):
+    fit_model(X_train, y_train, Bs[i], epoch, val_split)
+      
+# show learning curves
 plt.show()
-
-print("Evaluation against the test data \n")
-model.evaluate(X_test, y_test)
-
-# Save the model
-model.save("2HL_64sp_8sp")
