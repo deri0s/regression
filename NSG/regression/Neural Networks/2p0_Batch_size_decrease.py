@@ -23,9 +23,8 @@ y_raw_df = pd.read_excel(file, sheet_name='y_raw_training')
 t_df = pd.read_excel(file, sheet_name='time')
 
 # Pre-Process training data
-X_train, y_train, N, D, max_lag, time_lags = dpm.align_arrays(X_df, y_df, t_df)
-X = ss().fit(X_train).transform(X_train)
-y = ss().fit(np.vstack(y_train)).transform(np.vstack(y_train))
+X0, y0, N0, D, max_lag, time_lags = dpm.align_arrays(X_df, y_df, t_df)
+X = ss().fit(X0).transform(X0)
 
 # Process raw targets
 # Just removes the first max_lag points from the date_time array.
@@ -39,10 +38,19 @@ date_time = dpm.adjust_time_lag(y_df['Time stamp'].values,
                                 shift=0,
                                 to_remove=max_lag)
 
+#Plot accuracy of the model after each epoch.
+plt.figure()
+plt.plot(y_raw, '--', c='r', label='Raw')
+plt.plot(y0, label='Conditioned')
+plt.xlabel("X")
+plt.ylabel("Faults/m3")
+plt.legend()
+# plt.show()
+
 """
 Changing the batch-size hyperparameter
 """
-def fit_model(X_train, y_train, B, epoch, val_split):
+def fit_model(X, y0, y_raw, B, epoch, val_split):
     # Architecture
     model = keras.models.Sequential()
     N_units1 = 64
@@ -60,6 +68,11 @@ def fit_model(X_train, y_train, B, epoch, val_split):
     end = 1000
     N = end - start
     assert N > 0
+
+    # Standardise targets
+    scaler = ss().fit(np.vstack(y0))
+    y = scaler.transform(np.vstack(y0))
+
     X_train, X_test, y_train, y_test = train_test_split(X[start:end], y[start:end], test_size=0.2)
 
     trained = model.fit(X_train, y_train,
@@ -74,13 +87,28 @@ def fit_model(X_train, y_train, B, epoch, val_split):
     plt.ylabel("Error (MAE)")
     plt.legend()
 
+    # Predictions on test data
+    yp = model.predict(X_test)
+
+    #Plot accuracy of the model after each epoch.
+    plt.figure()
+    plt.plot()
+    plt.plot(y_raw[800:1000], c='black', label='Raw')
+    plt.plot(y0[800:1000], '-*', label='test')
+    plt.plot(yp, '--', label='NN')
+    # plt.axvline(800, linestyle='--', linewidth=3, color='lime', label='<- train | test ->')
+    plt.title("B="+str(B))
+    plt.xlabel("X")
+    plt.ylabel("Faults/m3")
+    plt.legend()
+
 # How the model error change with B?
-Bs = [1000, 500, 333]
+Bs = [500]
 epoch = 400
 val_split = 0.2
 
 for i in range(len(Bs)):
-    fit_model(X_train, y_train, Bs[i], epoch, val_split)
+    fit_model(X, y0, y_raw, Bs[i], epoch, val_split)
       
 # show learning curves
 plt.show()
