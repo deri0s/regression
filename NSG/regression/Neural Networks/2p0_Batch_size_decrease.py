@@ -12,8 +12,10 @@ from NSG import *
 import tensorflow as tf
 from tensorflow import keras
 
+"""
+NSG data
+"""
 # NSG post processes data location
-# file = str(os.getcwd())
 file = 'NSG_data.xlsx'
 
 # Training df
@@ -24,7 +26,9 @@ t_df = pd.read_excel(file, sheet_name='time')
 
 # Pre-Process training data
 X0, y0, N0, D, max_lag, time_lags = dpm.align_arrays(X_df, y_df, t_df)
+scaler = ss().fit(np.vstack(y0))
 X = ss().fit(X0).transform(X0)
+y = scaler.transform(np.vstack(y0))
 
 # Process raw targets
 # Just removes the first max_lag points from the date_time array.
@@ -38,34 +42,32 @@ date_time = dpm.adjust_time_lag(y_df['Time stamp'].values,
                                 shift=0,
                                 to_remove=max_lag)
 
-#Plot accuracy of the model after each epoch.
-plt.figure()
-plt.plot(y_raw, '--', c='r', label='Raw')
-plt.plot(y0, label='Conditioned')
-plt.xlabel("X")
-plt.ylabel("Faults/m3")
-plt.legend()
-# plt.show()
 
 """
 Changing the batch-size hyperparameter
 """
-def fit_model(X, y0, y_raw, B, epoch, val_split):
+def fit_model(X, y, D, y0, y_raw, B, epoch, val_split):
     # Architecture
     model = keras.models.Sequential()
-    N_units1 = 64
-    model.add(keras.layers.Dense(N_units1, name='hidden1', activation='softplus'))
-    N_units2 = 8
-    model.add(keras.layers.Dense(N_units2, name='hidden2', activation='softplus'))
-    model.add(keras.layers.Dense(1, name='output'))
+    model.add(keras.layers.Dense(128, name='hidden1', activation="relu", input_dim=D))
+    model.add(keras.layers.Dense(32, name='hidden2', activation='relu'))
+    model.add(keras.layers.Dense(8, name='hidden3', activation='relu'))
+    model.add(keras.layers.Dense(1, name='output', activation='linear'))
 
     # Compilation
     model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),
-                  loss='mean_absolute_error')
+                  loss='mean_squared_error')
 
     # Train and test data
     start = 0
-    end = 1000
+    end = 500
+    dif = 200
+    X_train, y_train = X[start:end], y[start:end]
+    X_test = X[end-dif:end+dif]
+    # y_test doesn't need to be standardise
+    y_test = y0[end-dif:end+dif]
+    y_raw = y_raw[end-dif:end+dif]
+    dt_train = date_time[end-dif:end+dif]
     N = end - start
     assert N > 0
 
@@ -73,42 +75,47 @@ def fit_model(X, y0, y_raw, B, epoch, val_split):
     scaler = ss().fit(np.vstack(y0))
     y = scaler.transform(np.vstack(y0))
 
-    X_train, X_test, y_train, y_test = train_test_split(X[start:end], y[start:end], test_size=0.2)
-
     trained = model.fit(X_train, y_train,
                         batch_size=B, epochs=epoch, verbose=1, validation_split=val_split)
 
-    #Plot accuracy of the model after each epoch.
-    plt.figure()
-    plt.plot(trained.history['loss'], label='train')
-    plt.plot(trained.history['val_loss'], label='test')
-    plt.title("B="+str(B))
-    plt.xlabel("N of Epoch")
-    plt.ylabel("Error (MAE)")
-    plt.legend()
+    # Plot accuracy of the model after each epoch.
+    # plt.figure()
+    # plt.plot(trained.history['loss'], label='train')
+    # plt.plot(trained.history['val_loss'], label='test')
+    # plt.title("B="+str(B))
+    # plt.xlabel("N of Epoch")
+    # plt.ylabel("Error (MAE)")
+    # plt.legend()
 
     # Predictions on test data
-    yp = model.predict(X_test)
+    yp_stand = model.predict(X_test)
+    yp = scaler.inverse_transform(yp_stand)
 
     #Plot accuracy of the model after each epoch.
-    plt.figure()
-    plt.plot()
-    plt.plot(y_raw[800:1000], c='black', label='Raw')
-    plt.plot(y0[800:1000], '-*', label='test')
-    plt.plot(yp, '--', label='NN')
-    # plt.axvline(800, linestyle='--', linewidth=3, color='lime', label='<- train | test ->')
-    plt.title("B="+str(B))
-    plt.xlabel("X")
-    plt.ylabel("Faults/m3")
-    plt.legend()
+    fig, ax = plt.subplots()
+
+    # Increase the size of the axis numbers
+    plt.rcdefaults()
+    plt.rc('xtick', labelsize=14)
+    plt.rc('ytick', labelsize=14)
+
+    fig.autofmt_xdate()
+    plt.axvline(dt_train[dif], linestyle='--', linewidth=3, color='lime', label='<- train | test ->')
+    ax.plot(dt_train, y_raw, color="black", linewidth = 2.5, label="Raw")
+    ax.plot(dt_train, y_test, color="blue", linewidth = 2.5, label="Conditioned")
+    ax.plot(dt_train, yp, color="orange", linewidth = 2.5, label="NN")
+    ax.set_xlabel(" Date-time", fontsize=14)
+    ax.set_ylabel(" Fault density", fontsize=14)
+    plt.legend(loc=0, prop={"size":18}, facecolor="white", framealpha=1.0)
 
 # How the model error change with B?
-Bs = [500]
-epoch = 400
+Bs = [32, 64, 300, 500]
+# Bs = [300]
+epoch = 1000
 val_split = 0.2
 
 for i in range(len(Bs)):
-    fit_model(X, y0, y_raw, Bs[i], epoch, val_split)
+    fit_model(X, y, D, y0, y_raw, Bs[i], epoch, val_split)
       
 # show learning curves
 plt.show()
