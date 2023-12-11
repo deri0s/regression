@@ -11,6 +11,7 @@ from NSG import *
 
 import tensorflow as tf
 from tensorflow import keras
+from keras.callbacks import EarlyStopping
 
 """
 NSG data
@@ -49,7 +50,7 @@ Changing the batch-size hyperparameter
 def fit_model(X, y, D, y0, y_raw, B, epoch, val_split):
     # Architecture
     model = keras.models.Sequential()
-    model.add(keras.layers.Dense(128, name='hidden1', activation="relu", input_dim=D))
+    # model.add(keras.layers.Dense(128, name='hidden1', activation="relu", input_dim=D))
     model.add(keras.layers.Dense(32, name='hidden2', activation='relu'))
     model.add(keras.layers.Dense(8, name='hidden3', activation='relu'))
     model.add(keras.layers.Dense(1, name='output', activation='linear'))
@@ -60,7 +61,7 @@ def fit_model(X, y, D, y0, y_raw, B, epoch, val_split):
 
     # Train and test data
     start = 0
-    end = 500
+    end = 6000
     dif = 200
     X_train, y_train = X[start:end], y[start:end]
     X_test = X[end-dif:end+dif]
@@ -75,21 +76,30 @@ def fit_model(X, y, D, y0, y_raw, B, epoch, val_split):
     scaler = ss().fit(np.vstack(y0))
     y = scaler.transform(np.vstack(y0))
 
+    # Patient early stopping
+    es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=9400)
+
     trained = model.fit(X_train, y_train,
-                        batch_size=B, epochs=epoch, verbose=1, validation_split=val_split)
+                        batch_size=B, epochs=epoch, verbose=2,
+                        validation_split=val_split, callbacks=[es])
 
     # Plot accuracy of the model after each epoch.
-    # plt.figure()
-    # plt.plot(trained.history['loss'], label='train')
-    # plt.plot(trained.history['val_loss'], label='test')
-    # plt.title("B="+str(B))
-    # plt.xlabel("N of Epoch")
-    # plt.ylabel("Error (MAE)")
-    # plt.legend()
+    plt.figure()
+    plt.plot(trained.history['loss'], label='train')
+    plt.plot(trained.history['val_loss'], label='test')
+    plt.title("B="+str(B))
+    plt.xlabel("N of Epoch")
+    plt.ylabel("Error (MAE)")
+    plt.legend()
 
     # Predictions on test data
     yp_stand = model.predict(X_test)
     yp = scaler.inverse_transform(yp_stand)
+
+    print("Evaluation against the test data \n")
+    model.evaluate(X_test, y_test)
+
+    model.save("2HL_32relu_8relu_B3000_epoch10000")
 
     #Plot accuracy of the model after each epoch.
     fig, ax = plt.subplots()
@@ -109,9 +119,9 @@ def fit_model(X, y, D, y0, y_raw, B, epoch, val_split):
     plt.legend(loc=0, prop={"size":18}, facecolor="white", framealpha=1.0)
 
 # How the model error change with B?
-Bs = [32, 64, 300, 500]
-# Bs = [300]
-epoch = 1000
+# Bs = [32, 64, 300, 500]
+Bs = [3000]
+epoch = 10000
 val_split = 0.2
 
 for i in range(len(Bs)):

@@ -37,15 +37,15 @@ date_time = dpm.adjust_time_lag(y_df['Time stamp'].values,
                                 shift=0,
                                 to_remove=max_lag)
 
-start = 0
-end = 500
-dif = 200
+start = 5500
+end = 6000
+dif = 6000
 X_train, y_train = X[start:end], y[start:end]
-X_test = X[end-dif:end+dif]
+X_test = X[end-dif:end+dif+8000]
 # y_test doesn't need to be standardise
-y_test = y0[end-dif:end+dif]
-y_raw = y_raw[end-dif:end+dif]
-dt_train = date_time[end-dif:end+dif]
+y_test = y0[end-dif:end+dif+8000]
+y_raw = y_raw[end-dif:end+dif+8000]
+dt_train = date_time[end-dif:end+dif+8000]
 
 
 """
@@ -80,35 +80,39 @@ from tensorflow import keras
 from keras.layers import Dense
 from keras.callbacks import EarlyStopping
 
-# Architecture
-model = keras.models.Sequential()
-model.add(Dense(128, name='hidden1', activation="relu", input_dim=D))
-model.add(Dense(32, name='hidden2', activation='relu'))
-model.add(Dense(8, name='hidden3', activation='relu'))
-model.add(Dense(1, name='output', activation='linear'))
+# # Architecture
+# model = keras.models.Sequential()
+# model.add(Dense(128, name='hidden1', activation="relu", input_dim=D))
+# model.add(Dense(32, name='hidden2', activation='relu'))
+# model.add(Dense(8, name='hidden3', activation='relu'))
+# model.add(Dense(1, name='output', activation='linear'))
 
-# Compilation
-model.compile(loss='mean_squared_error',
-              optimizer=keras.optimizers.Adam(lr=1e-3))
+# # Compilation
+# model.compile(loss='mean_squared_error',
+#               optimizer=keras.optimizers.Adam(lr=1e-3))
 
-# Patient early stopping
-es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=200)
+# # Patient early stopping
+# es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=200)
 
-# Fit the model
-iter = 1000
-B = 300
-val_split = 0.2
-history = model.fit(X_train, y_train, validation_split=val_split,
-                    epochs=iter, batch_size=B, verbose=2, callbacks=[es])
+# # Fit the model
+# iter = 1000
+# B = 300
+# val_split = 0.2
+# history = model.fit(X_train, y_train, validation_split=val_split,
+#                     epochs=iter, batch_size=B, verbose=2, callbacks=[es])
 
-# Plot accuracy of the model after each epoch.
-plt.figure()
-plt.plot(history.history['loss'], label='train')
-plt.plot(history.history['val_loss'], label='test')
-plt.title("B="+str(B))
-plt.xlabel("N of Epoch")
-plt.ylabel("Error (MAE)")
-plt.legend()
+# # Plot accuracy of the model after each epoch.
+# plt.figure()
+# plt.plot(history.history['loss'], label='train')
+# plt.plot(history.history['val_loss'], label='test')
+# plt.title("B="+str(B))
+# plt.xlabel("N of Epoch")
+# plt.ylabel("Error (MAE)")
+# plt.legend()
+
+# Load trained model
+model = keras.models.load_model('2HL_32relu_8relu_B3000_epoch10000')
+model.summary()
 
 # Predictions on test data
 yp_stand = model.predict(X_test)
@@ -127,12 +131,12 @@ plt.rc('ytick', labelsize=14)
 
 fig.autofmt_xdate()
 plt.axvline(dt_train[dif], linestyle='--', linewidth=3, color='lime', label='<- train | test ->')
-ax.plot(dt_train, y_raw, color="black", linewidth = 2.5, label="Raw")
+# ax.plot(dt_train, y_raw, color="black", linewidth = 2.5, label="Raw")
 ax.plot(dt_train, y_test, color="blue", linewidth = 2.5, label="Conditioned")
 ax.plot(dt_train, mu, '--', color="red", linewidth = 2.5, label="GP")
-ax.plot(dt_train, yNN, color="orange", linewidth = 2.5, label="NN")
+ax.plot(dt_train, yNN, '--', color="orange", linewidth = 2.5, label="NN")
 ax.set_xlabel(" Date-time", fontsize=14)
 ax.set_ylabel(" Fault density", fontsize=14)
-plt.legend(loc=0, prop={"size":18}, facecolor="white", framealpha=1.0)
+plt.legend(loc=0, prop={"size":12}, facecolor="white", framealpha=1.0)
 
 plt.show()
