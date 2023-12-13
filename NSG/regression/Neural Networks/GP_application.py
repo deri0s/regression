@@ -37,7 +37,7 @@ date_time = dpm.adjust_time_lag(y_df['Time stamp'].values,
                                 shift=0,
                                 to_remove=max_lag)
 
-start = 5500
+start = 1000
 end = 6000
 dif = 6000
 X_train, y_train = X[start:end], y[start:end]
@@ -130,6 +130,7 @@ plt.rc('xtick', labelsize=14)
 plt.rc('ytick', labelsize=14)
 
 fig.autofmt_xdate()
+plt.axvline(dt_train[start], linestyle='--', linewidth=3, color='lime', label='train->')
 plt.axvline(dt_train[dif], linestyle='--', linewidth=3, color='lime', label='<- train | test ->')
 # ax.plot(dt_train, y_raw, color="black", linewidth = 2.5, label="Raw")
 ax.plot(dt_train, y_test, color="blue", linewidth = 2.5, label="Conditioned")
