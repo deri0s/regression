@@ -1,69 +1,81 @@
 import sys
 sys.path.insert(0, 'C:\Diego\PhD\Code\phdCode')
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler as ss
 from NSG import data_processing_methods as dpm
-from NSG import *
 
-import tensorflow as tf
-from tensorflow import keras
-
+"""
+NSG data
+"""
 # NSG post processes data location
-file = 'NSG/regression/Neural Networks/NSG_training_val_data.xlsx'
+file = 'NSG_data.xlsx'
 
 # Training df
 X_df = pd.read_excel(file, sheet_name='X_training')
 y_df = pd.read_excel(file, sheet_name='y_training')
-
-y_unstand_df = pd.read_excel(file, sheet_name='y_training_unstand')
-
 y_raw_df = pd.read_excel(file, sheet_name='y_raw_training')
+t_df = pd.read_excel(file, sheet_name='time')
 
-T_df = pd.read_excel(file, sheet_name='time')
+# Pre-Process training data
+X0, y0, N0, D, max_lag, time_lags = dpm.align_arrays(X_df, y_df, t_df)
+scaler = ss().fit(np.vstack(y0))
+X = ss().fit(X0).transform(X0)
+y = scaler.transform(np.vstack(y0))
 
-# Align STANDARDISED training data
-X_train, Y_train, N, D, max_lag, time_lags = dpm.align_arrays(X_df, y_df, T_df)
-date_time = dpm.adjust_time_lag(y_df['Time stamp'].values,
-                                shift=0,
-                                to_remove=max_lag)
-
-# Align UN-STANDARDISED RECTIFIED targets
-Y_train_undstand = dpm.adjust_time_lag(y_unstand_df['furnace_faults'].values,
-                                       shift=0,
-                                       to_remove=max_lag)
-
-# # Align UN-STANDARDISED RAW targets
+# Process raw targets
+# Just removes the first max_lag points from the date_time array.
 y_raw = dpm.adjust_time_lag(y_raw_df['raw_furnace_faults'].values,
                             shift=0,
                             to_remove=max_lag)
 
-# Validation dataset
-start = 0
-end = 15000
-X_val = X_train[start:end]
-y_val = Y_train[start:end]
-y_val_unstand = Y_train_undstand[start:end]
-y_raw_val = y_raw[start:end]
-dtval = date_time[start:end]
+# Extract corresponding time stamps. Note this essentially just
+# removes the first max_lag points from the date_time array.
+date_time = dpm.adjust_time_lag(y_df['Time stamp'].values,
+                                shift=0,
+                                to_remove=max_lag)
+
+# Train and test data
+N, D = np.shape(X)
+N_train = 1800
+X_train, y_train = X[0:N_train], y[0:N_train]
+X_test, y_test = X[N_train:N], y[N_train:N]
+
+"""
+Neural Network
+"""
+import os
+from tensorflow import keras
 
 # Load trained model
-model = keras.models.load_model('2HL_68_8')
+location = os.getcwd()+'\\regression\\Neural Networks\\Varying Hyperparameters\\Batch'
+model = keras.models.load_model(location+'\\2HL_32sp_8sp_softplus_B9000')
 model.summary()
-yp = model.predict(X_val)
 
-# Finding fault density mean and std (at training points)
-Y_mean = np.mean(y_unstand_df['furnace_faults'].values)
-Y_std = np.std(y_unstand_df['furnace_faults'].values)
+# Predictions on test data
+yp_stand = model.predict(X_test)
+yNN = scaler.inverse_transform(yp_stand)
 
-mu = yp*Y_mean + Y_std
 
-# Plots
-plt.figure()
-plt.plot(dtval, y_raw_val, 'o', color="black", label="Raw")
-plt.plot(dtval, y_val_unstand, color="orange", label="Rectified")
-plt.plot(dtval, mu, c='red', label='NN')
-plt.legend()
-plt.title('NSG')
+"""
+Plots
+"""
+fig, ax = plt.subplots()
+
+# Increase the size of the axis numbers
+plt.rcdefaults()
+plt.rc('xtick', labelsize=14)
+plt.rc('ytick', labelsize=14)
+
+fig.autofmt_xdate()
+plt.axvline(date_time[N_train], linestyle='--', linewidth=3, color='lime', label='<- train | test ->')
+# ax.plot(dt_train, y_raw, color="black", linewidth = 2.5, label="Raw")
+ax.plot(date_time[N_train:N], y0[N_train:N], color="blue", linewidth = 2.5, label="Conditioned")
+ax.plot(date_time[N_train:N], yNN, '--', color="orange", linewidth = 2.5, label="NN")
+ax.set_xlabel(" Date-time", fontsize=14)
+ax.set_ylabel(" Fault density", fontsize=14)
+plt.legend(loc=0, prop={"size":12}, facecolor="white", framealpha=1.0)
 
 plt.show()

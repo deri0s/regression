@@ -45,7 +45,7 @@ date_time = dpm.adjust_time_lag(y_df['Time stamp'].values,
 
 # Train and test data
 N, D = np.shape(X)
-N_train = 1800
+N_train = 18000
 X_train, y_train = X[0:N_train], y[0:N_train]
 X_test, y_test = X[N_train:N], y[N_train:N]
 
@@ -57,7 +57,7 @@ import xlsxwriter
 from keras.layers import Dense
 
 # Architecture
-architecture = '2HL_32sp_8sp'
+architecture = '\\2HL_32sp_8sp'
 act = 'softplus'
 model = keras.models.Sequential()
 model.add(Dense(32, name='hidden1', activation=act))
@@ -65,22 +65,23 @@ model.add(Dense(8, name= 'hidden2', activation=act))
 model.add(Dense(1, name= 'output', activation=act))
 
 # Compilation
-lr = 0.005
+lr = 0.001
 model.compile(optimizer=keras.optimizers.Adam(learning_rate=lr),
               loss='mean_absolute_error')
 
 # Model hyperparameters
-B = [900, 600, 300]
-epoch = 200
+B = [9000, 6000, 3000]
+epoch = 2000
 val_split = 0.2
 
 # Patient early stopping
 es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=940)
 
 # Define an Excel writer object and the target file
+cd = os.getcwd()    # Current directory
 location = '\\regression\\Neural Networks\\Varying Hyperparameters\\Batch'
-name = 'caca.xlsx'
-writer = pd.ExcelWriter(name)
+name = architecture+'_lr_p001'+'.xlsx'
+writer = pd.ExcelWriter(cd+location+name)
 
 df = []
 for i in range(len(B)):
@@ -89,7 +90,7 @@ for i in range(len(B)):
                         batch_size=B[i], epochs=epoch,
                         validation_split=val_split, callbacks=[es])
     
-    model.save(architecture+'_'+str(act)+'_B'+str(B[i]))
+    model.save(cd+location+architecture+'_'+str(act)+'_B'+str(B[i]))
     
     print("Evaluation against the test data B: ", B[i])
     error = model.evaluate(X_test, y_test)
@@ -104,4 +105,4 @@ for i in range(len(B)):
 
     df[i].to_excel(writer, sheet_name='B '+str(B[i]), index=False)
 
-writer.save()
+writer._save()
