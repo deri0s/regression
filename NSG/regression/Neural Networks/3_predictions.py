@@ -39,9 +39,13 @@ date_time = dpm.adjust_time_lag(y_df['Time stamp'].values,
 
 # Train and test data
 N, D = np.shape(X)
-N_train = 1800
+N_train = 18000
 X_train, y_train = X[0:N_train], y[0:N_train]
-X_test, y_test = X[N_train:N], y[N_train:N]
+
+test_range = range(N)
+X_test = X[test_range]
+dt_test, y_test = date_time[test_range], y0[test_range]
+
 
 """
 Neural Network
@@ -51,7 +55,7 @@ from tensorflow import keras
 
 # Load trained model
 location = os.getcwd()+'\\regression\\Neural Networks\\Varying Hyperparameters\\Batch'
-model = keras.models.load_model(location+'\\2HL_32sp_8sp_softplus_B9000')
+model = keras.models.load_model(location+'\\1HL4__relu_B512')
 model.summary()
 
 # Predictions on test data
@@ -71,9 +75,9 @@ plt.rc('ytick', labelsize=14)
 
 fig.autofmt_xdate()
 plt.axvline(date_time[N_train], linestyle='--', linewidth=3, color='lime', label='<- train | test ->')
-# ax.plot(dt_train, y_raw, color="black", linewidth = 2.5, label="Raw")
-ax.plot(date_time[N_train:N], y0[N_train:N], color="blue", linewidth = 2.5, label="Conditioned")
-ax.plot(date_time[N_train:N], yNN, '--', color="orange", linewidth = 2.5, label="NN")
+# ax.plot(dt_train, y_raw, color="grey", linewidth = 2.5, label="Raw")
+ax.plot(dt_test, y_test, color="blue", linewidth = 2.5, label="Conditioned")
+ax.plot(dt_test, yNN, '--', color="red", linewidth = 2.5, label="NN")
 ax.set_xlabel(" Date-time", fontsize=14)
 ax.set_ylabel(" Fault density", fontsize=14)
 plt.legend(loc=0, prop={"size":12}, facecolor="white", framealpha=1.0)

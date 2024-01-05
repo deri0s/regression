@@ -45,7 +45,7 @@ date_time = dpm.adjust_time_lag(y_df['Time stamp'].values,
 
 # Train and test data
 N, D = np.shape(X)
-N_train = 18000
+N_train = 5000
 X_train, y_train = X[0:N_train], y[0:N_train]
 X_test, y_test = X[N_train:N], y[N_train:N]
 
@@ -57,25 +57,28 @@ import xlsxwriter
 from keras.layers import Dense
 
 # Architecture
-architecture = '\\2HL_32sp_8sp'
-act = 'softplus'
+N_layers = 1
+N_units = 4
+architecture = '\\'+str(N_layers)+'HL'+str(N_units)+'_'
+act = 'relu'
 model = keras.models.Sequential()
-model.add(Dense(32, name='hidden1', activation=act))
-model.add(Dense(8, name= 'hidden2', activation=act))
-model.add(Dense(1, name= 'output', activation=act))
+model.add(Dense(N_units, name='hidden1', activation=act))
+# model.add(Dense(64, name='hidden2', activation=act))
+# model.add(Dense(8, name= 'hidden3', activation=act))
+model.add(Dense(1, name= 'output', activation='linear'))
 
 # Compilation
-lr = 0.001
-model.compile(optimizer=keras.optimizers.Adam(learning_rate=lr),
+lr = 0.0001
+model.compile(optimizer=keras.optimizers.AdamW(learning_rate=lr),
               loss='mean_absolute_error')
 
 # Model hyperparameters
-B = [9000, 6000, 3000]
-epoch = 2000
+B = [512]
+epoch = 3000
 val_split = 0.2
 
 # Patient early stopping
-es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=940)
+es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=3500)
 
 # Define an Excel writer object and the target file
 cd = os.getcwd()    # Current directory
@@ -91,6 +94,15 @@ for i in range(len(B)):
                         validation_split=val_split, callbacks=[es])
     
     model.save(cd+location+architecture+'_'+str(act)+'_B'+str(B[i]))
+
+    # Plot accuracy of the model after each epoch.
+    plt.figure()
+    plt.plot(trained.history['loss'], label='train')
+    plt.plot(trained.history['val_loss'], label='test')
+    plt.title("B="+str(B[i]))
+    plt.xlabel("N of Epoch")
+    plt.ylabel("Error (MAE)")
+    plt.legend()
     
     print("Evaluation against the test data B: ", B[i])
     error = model.evaluate(X_test, y_test)
@@ -105,4 +117,6 @@ for i in range(len(B)):
 
     df[i].to_excel(writer, sheet_name='B '+str(B[i]), index=False)
 
+
+plt.show()
 writer._save()
