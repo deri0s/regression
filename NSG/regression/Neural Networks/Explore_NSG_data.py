@@ -50,11 +50,11 @@ print('N: ', np.shape(y_raw))
 Explore data
 """
 
-fig = plt.figure()
-fig.autofmt_xdate()
-plt.plot(y_raw, c='black', label='Raw')
-# plt.plot(y0, c='black', label='Conditioned')
-plt.title('NSG data')
+# fig = plt.figure()
+# fig.autofmt_xdate()
+# plt.plot(y_raw, c='black', label='Raw')
+# # plt.plot(y0, c='black', label='Conditioned')
+# plt.title('NSG data')
 
 """----------------------------------------------------------------------------
 PCA Analysis
@@ -133,7 +133,13 @@ for i in range(np.shape(Xt_test)[0]):
     ax[i].set_xlim(np.min(Xt[:, 0])-1, np.max(np.max(Xt[:, 0])))
     ax[i].set_ylim(np.min(Xt[:, 0]), np.max(np.max(Xt[:, 1])))
 
-plt.show()
-
 # DateTime where the training and testing data overlapped
-print('Overlapping from ', date_time[N_train+1000], ' to ', date_time[N_train+1500])
+print(f"Overlapping from {date_time[N_train+1000]} to {date_time[N_train+1500]}")
+
+similar = range(N_train+1000,N_train+1500)
+fig = plt.figure()
+fig.autofmt_xdate()
+plt.plot(date_time, y_raw, c='black', label='Raw')
+plt.plot(date_time[similar], y_raw[similar], c='red', label='Similar to training data')
+plt.title('NSG Fault Density Data')
+plt.show()
