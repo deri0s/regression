@@ -1,6 +1,3 @@
-import sys
-sys.path.insert(0, 'C:\Diego\PhD\Code\phdCode')
-import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -8,6 +5,7 @@ from sklearn.preprocessing import StandardScaler as ss
 from sklearn.model_selection import train_test_split
 from NSG import data_processing_methods as dpm
 from NSG import *
+import paths
 
 import tensorflow as tf
 from tensorflow import keras
@@ -17,7 +15,7 @@ from keras.callbacks import EarlyStopping
 NSG data
 """
 # NSG post processes data location
-file = 'NSG_data.xlsx'
+file = paths.get_data_path('NSG_data.xlsx')
 
 # Training df
 X_df = pd.read_excel(file, sheet_name='X_training')
