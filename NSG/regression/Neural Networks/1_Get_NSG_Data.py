@@ -66,11 +66,17 @@ assert len(X_df.columns) == len(to_retain)
 # Check that the data frame input names match those in to_retain
 assert set(X_df.columns) == set(to_retain)
 
+# Standardise input data
+from sklearn.preprocessing import StandardScaler
+
+X_df_stand = StandardScaler().fit_transform(X_df)
+X_df = pd.DataFrame(X_df_stand, columns=X_df.columns)
+
 # Save final training and validation data
-writer = pd.ExcelWriter(str(os.getcwd())+'\\NSG_data.xlsx')
+writer = pd.ExcelWriter(str(os.getcwd())+'\\NSG\\data\\NSG_data.xlsx')
 
 # Save to spreadsheet
-X_df.to_excel(writer, sheet_name='X_training', index=False)
+X_df.to_excel(writer, sheet_name='X_training_stand', index=False)
 Y_df.to_excel(writer, sheet_name='y_training', index=False)
 Y_raw_df.to_excel(writer, sheet_name='y_raw_training', index=False)
 T_df.to_excel(writer, sheet_name='time', index=False)

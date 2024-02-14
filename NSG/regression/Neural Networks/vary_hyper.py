@@ -18,15 +18,14 @@ NSG data
 file = paths.get_data_path('NSG_data.xlsx')
 
 # Training df
-X_df = pd.read_excel(file, sheet_name='X_training')
+X_df = pd.read_excel(file, sheet_name='X_training_stand')
 y_df = pd.read_excel(file, sheet_name='y_training')
 y_raw_df = pd.read_excel(file, sheet_name='y_raw_training')
 t_df = pd.read_excel(file, sheet_name='time')
 
 # Pre-Process training data
-X0, y0, N0, D, max_lag, time_lags = dpm.align_arrays(X_df, y_df, t_df)
+X, y0, N0, D, max_lag, time_lags = dpm.align_arrays(X_df, y_df, t_df)
 scaler = ss().fit(np.vstack(y0))
-X = ss().fit(X0).transform(X0)
 
 # Process raw targets
 # Just removes the first max_lag points from the date_time array.
@@ -54,55 +53,68 @@ import xlsxwriter
 from keras.layers import Dense
 
 # Architecture
-N_layers = 1
-N_units = 4
-architecture = '\\'+str(N_layers)+'HL'+str(N_units)+'_'
+N_layers = [1]
+# N_layers = np.arange(1,6)
+N_units = [i*256 for i in range(1,10)][::-1]
 act = 'relu'
+architecture = '\\'+str(N_layers)+'HL'+str(max(N_units))+'_units_'+act
 model = keras.models.Sequential()
-model.add(Dense(N_units, name='hidden1', activation=act))
-model.add(Dense(64, name='hidden2', activation=act))
-model.add(Dense(8, name= 'hidden3', activation=act))
-model.add(Dense(1, name= 'output', activation='linear'))
-
-# Compilation
-lr = 0.0001
-model.compile(optimizer=keras.optimizers.AdamW(learning_rate=lr),
-              loss='mean_absolute_error')
 
 # Model hyperparameters
-B = [N]
+B = [int(N/i) for i in range(1,6)]
 epoch = 6000
 val_split = 0.2
+lr = 1e-4
 
 # Patient early stopping
-es = EarlyStopping(monitor='val_loss', mode='min', verbose=0, patience=3500)
+es = EarlyStopping(monitor='val_loss', mode='min', patience=3500)
+
+err = []
+bat = []
+uni = []
+for layer in N_layers:
+    for unit in N_units:
+        model.add(Dense(unit, name='hidden_'+str(layer), activation=act))
+        model.add(Dense(1, name= 'output', activation='linear'))
+        model.compile(optimizer=keras.optimizers.AdamW(learning_rate=lr),
+                      loss='mean_absolute_error')
+
+        for i in B:
+            trained = model.fit(X_train, y_train,
+                                batch_size=i, epochs=epoch,
+                                validation_split=val_split, callbacks=[es])
+            # assemble DataFrame
+            err.append(model.evaluate(X_test, y_test))
+            bat.append(i)
+            uni.append(unit)
+
+        # delete model
+        model = keras.models.Sequential()
+
+# assemble DataFrame
+df = pd.DataFrame({'units': uni, 'batch': bat, 'MAE': err})
+df.to_csv('single_layer.csv')
 
 # Define an Excel writer object and the target file
-# cd = os.getcwd()    # Current directory
-# location = '\\regression\\Neural Networks\\Varying Hyperparameters\\Batch'
-# name = architecture+'_lr_p001'+'.xlsx'
-# writer = pd.ExcelWriter(cd+location+name)
+cd = os.getcwd()    # Current directory
+location = '\\regression\\Neural Networks\\Varying Hyperparameters\\Batch'
+name = architecture+'_lr_p001'+'.xlsx'
+writer = pd.ExcelWriter(cd+location+name)
 
-df = []
-for i in range(len(B)):
-    print('B: ', B[i])
-    trained = model.fit(X_train, y_train,
-                        batch_size=B[i], epochs=epoch,
-                        validation_split=val_split, callbacks=[es])
-    
-    # model.save(cd+location+architecture+'_'+str(act)+'_B'+str(B[i]))
 
-    # Plot accuracy of the model after each epoch.
-    plt.figure()
-    plt.plot(trained.history['loss'], label='train')
-    plt.plot(trained.history['val_loss'], label='test')
-    plt.title("B="+str(B[i]))
-    plt.xlabel("N of Epoch")
-    plt.ylabel("Error (MAE)")
-    plt.legend()
-    
-    print("Evaluation against the test data B: ", B[i])
-    error = model.evaluate(X_test, y_test)
+model.save(cd+location+architecture+'_'+str(act)+'_B'+str(B[i]))
+
+# Plot accuracy of the model after each epoch.
+plt.figure()
+plt.plot(trained.history['loss'], label='train')
+plt.plot(trained.history['val_loss'], label='test')
+plt.title("B="+str(B[i]))
+plt.xlabel("N of Epoch")
+plt.ylabel("Error (MAE)")
+plt.legend()
+
+print("Evaluation against the test data B: ", B[i])
+error = model.evaluate(X_test, y_test)
 
     # Save 
     # d = {}
@@ -140,3 +152,4 @@ plt.legend(loc=0, prop={"size":12}, facecolor="white", framealpha=1.0)
 
 plt.show()
 # writer._save()
+print('caca')

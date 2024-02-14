@@ -2,14 +2,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler as ss
-from sklearn.model_selection import train_test_split
 from NSG import data_processing_methods as dpm
 from NSG import *
 import paths
-
-import tensorflow as tf
-from tensorflow import keras
-from keras.callbacks import EarlyStopping
 
 """
 NSG data
@@ -18,15 +13,14 @@ NSG data
 file = paths.get_data_path('NSG_data.xlsx')
 
 # Training df
-X_df = pd.read_excel(file, sheet_name='X_training')
+X_df = pd.read_excel(file, sheet_name='X_training_stand')
 y_df = pd.read_excel(file, sheet_name='y_training')
 y_raw_df = pd.read_excel(file, sheet_name='y_raw_training')
 t_df = pd.read_excel(file, sheet_name='time')
 
 # Pre-Process training data
-X0, y0, N0, D, max_lag, time_lags = dpm.align_arrays(X_df, y_df, t_df)
+X, y0, N0, D, max_lag, time_lags = dpm.align_arrays(X_df, y_df, t_df)
 scaler = ss().fit(np.vstack(y0))
-X = ss().fit(X0).transform(X0)
 y = scaler.transform(np.vstack(y0))
 
 # Process raw targets
@@ -60,7 +54,7 @@ PCA Analysis
 
 from sklearn.decomposition import PCA
 # Save memory
-del X_df, y_df
+# del X_df, y_df
 
 N, D = np.shape(X)
 
@@ -137,7 +131,11 @@ print(f"Overlapping from {date_time[N_train+1000]} to {date_time[N_train+1500]}"
 similar = range(N_train+1000,N_train+1500)
 fig = plt.figure()
 fig.autofmt_xdate()
-plt.plot(date_time, y_raw, c='black', label='Raw')
-plt.plot(date_time[similar], y_raw[similar], c='red', label='Similar to training data')
+plt.plot(date_time, y_raw, linewidth = 2.5, c='black', label='Raw')
+plt.plot(date_time, y, c='orange', label='Standardised')
+plt.plot(date_time, y0, linewidth = 2.5, c='blue', label='Nonstandardised')
+plt.plot(y_df['Time stamp'].values, y_df['furnace_faults'].values, '--', linewidth = 2.5, c='lightgreen', label='y-df')
+plt.fill_between(date_time[similar], 50, color='pink', label='test data similar to training')
 plt.title('NSG Fault Density Data')
+plt.legend()
 plt.show()
