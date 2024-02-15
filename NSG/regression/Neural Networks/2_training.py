@@ -44,8 +44,21 @@ date_time = dpm.adjust_time_lag(y_df['Time stamp'].values,
 # Train and test data
 N, D = np.shape(X)
 N_train = N
-X_train, y_train = X[0:N_train], y0[0:N_train]
-X_test, y_test = X[0:N], y[0:N]
+stand = 0
+
+def get_train_test(X: np.array, y:np.array, stand: bool):
+    if stand:
+        X_train, y_train = X[0:N_train], y[0:N_train]
+        X_test, y_test = X[0:N], y[0:N]
+        label = 'Standardised'
+    else:
+        X_train, y_train = X[0:N_train], y0[0:N_train]
+        X_test, y_test = X[0:N], y0[0:N]
+        label = 'Nonstandardised'
+
+    return X_train, y_train, X_test, y_test, label
+
+X_train, y_train, X_test, y_test, stand_label = get_train_test(X, y, stand)
 date_time = date_time[0:N]
 
 
@@ -60,16 +73,17 @@ from keras.layers import Dense, Dropout
 # get best configuration from the single layer analysis
 path = os.path.realpath('NSG/regression/Neural Networks')
 df = pd.read_csv(path+'\\single_layer.csv')
-# units, batch = df[df['MAE'] == df['MAE'].min()][['units', 'batch']].values[0]
-units, batch = 1024, 5518
+units, batch = df[df['MAE'] == df['MAE'].min()][['units', 'batch']].values[0]
+units = [1024, 256, 128, 64, 16]
 
 N_layers = 1
 N_units = units
-architecture = '\\'+str(N_layers)+'HL'+str(N_units)+'_'
+architecture = '\\'+str(N_layers)+'HL_'+str(N_units)+'_units_'
 act = 'relu'
 model = keras.models.Sequential()
-model.add(Dense(N_units, name='hidden1', activation=act))
+model.add(Dense(units[1], name='hidden1', activation=act))
 model.add(Dropout(0.2))
+# model.add(Dense(units[3], name='hidden2', activation=act))
 model.add(Dense(1, name= 'output', activation='linear'))
 
 # Compilation
@@ -78,39 +92,39 @@ model.compile(optimizer=keras.optimizers.AdamW(learning_rate=lr),
               loss='mean_absolute_error')
 
 # Model hyperparameters
-B = [batch]
-epoch = 500
+# B = [11036, 5518, 2759]
+B = [5518]
+epoch = 300
 val_split = 0.2
 
 # Patient early stopping
 es = EarlyStopping(monitor='val_loss', mode='min', verbose=0, patience=3500)
 
 # # Define an Excel writer object and the target file
-cd = os.getcwd()    # Current directory
-location = '\\regression\\Neural Networks\\'
-name = location+architecture+'Nonstandard'+'.xlsx'
+cd = os.getcwd()+'\\NSG\\regression\\Neural Networks'
+name_model = cd+architecture+stand_label
 # writer = pd.ExcelWriter(cd+location+name)
 
 df = []
 for i in range(len(B)):
-    col = 0
+    print('B: ', B[i])
     trained = model.fit(X_train, y_train,
-                        batch_size=B[i], epochs=epoch,
+                        batch_size=int(B[i]), epochs=epoch,
                         validation_split=val_split, verbose=0, callbacks=[es])
     
-    model.save(cd+location+architecture+'_'+str(act)+'_B'+str(B[i]))
+    model.save(name_model+'_'+str(act)+'_B'+str(B[i]))
 
     # Plot accuracy of the model after each epoch.
     plt.figure()
     plt.plot(trained.history['loss'], label='train')
     plt.plot(trained.history['val_loss'], label='test')
-    plt.title("Units="+str(units)+"B="+str(B[i]))
+    plt.title(stand_label+" Units="+str(units)+" B="+str(B[i]))
     plt.xlabel("N of Epoch")
     plt.ylabel("Error (MAE)")
     plt.legend()
     
-    print("Evaluation against the test data B: ", B[i])
-    error = model.evaluate(X_test, y_test)
+    # print("Evaluation against the test data B: ", B[i])
+    # error = model.evaluate(X_test, y_test)
 
 #     # Save 
 #     d = {}
@@ -145,7 +159,7 @@ fig.autofmt_xdate()
 ax.plot(date_time, y_raw, color="grey", linewidth = 2.5, label="Raw")
 ax.plot(date_time, y_train, color="blue", linewidth = 2.5, label="Conditioned")
 ax.plot(date_time, yNN, '--', color="red", linewidth = 2.5, label="NN")
-plt.fill_between(date_time[N_train-int(N_train*val_split):], 50, color='pink', label='test data similar to training')
+plt.fill_between(date_time[N_train-int(N_train*val_split):], 50, color='pink', label='test data')
 ax.set_xlabel(" Date-time", fontsize=14)
 ax.set_ylabel(" Fault density", fontsize=14)
 plt.legend(loc=0, prop={"size":12}, facecolor="white", framealpha=1.0)

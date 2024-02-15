@@ -1,6 +1,4 @@
-import sys
-sys.path.insert(0, 'C:\Diego\PhD\Code\phdCode')
-
+import paths
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -11,10 +9,10 @@ from NSG import data_processing_methods as dpm
 NSG data
 """
 # NSG post processes data location
-file = 'NSG_data.xlsx'
+file = paths.get_data_path('NSG_data.xlsx')
 
 # Training df
-X_df = pd.read_excel(file, sheet_name='X_training')
+X_df = pd.read_excel(file, sheet_name='X_training_stand')
 y_df = pd.read_excel(file, sheet_name='y_training')
 y_raw_df = pd.read_excel(file, sheet_name='y_raw_training')
 t_df = pd.read_excel(file, sheet_name='time')
@@ -38,8 +36,9 @@ date_time = dpm.adjust_time_lag(y_df['Time stamp'].values,
                                 to_remove=max_lag)
 
 # Train and test data
+val_split = 0.2
 N, D = np.shape(X)
-N_train = 18000
+N_train = N
 X_train, y_train = X[0:N_train], y[0:N_train]
 
 test_range = range(N)
@@ -52,15 +51,21 @@ Neural Network
 """
 import os
 from tensorflow import keras
+from sklearn.metrics import mean_absolute_error as mae
 
 # Load trained model
-location = os.getcwd()+'\\regression\\Neural Networks\\Varying Hyperparameters\\Batch'
-model = keras.models.load_model(location+'\\1HL4__relu_B512')
-model.summary()
+path_file = os.getcwd()+'\\NSG\\regression\\Neural Networks'
+model1 = keras.models.load_model(path_file+'\\1HL_1024_units_Nonstandardised_relu_B5518')
+model2 = keras.models.load_model(path_file+'\\1HL_1024_units_Standardised_relu_B5518')
 
 # Predictions on test data
-yp_stand = model.predict(X_test)
-yNN = scaler.inverse_transform(yp_stand)
+yNN1 = model1.predict(X_test)
+yp_stand = model2.predict(X_test)
+yNN2 = scaler.inverse_transform(yp_stand)
+
+print('MAE')
+print('Nonstand: ', mae(y_test, yNN1))
+print('Stand: ', mae(y_test, yNN2))
 
 
 """
@@ -74,10 +79,12 @@ plt.rc('xtick', labelsize=14)
 plt.rc('ytick', labelsize=14)
 
 fig.autofmt_xdate()
-plt.axvline(date_time[N_train], linestyle='--', linewidth=3, color='lime', label='<- train | test ->')
-# ax.plot(dt_train, y_raw, color="grey", linewidth = 2.5, label="Raw")
+plt.fill_between(dt_test[N_train-int(N_train*val_split):], 50, color='pink', label='test data')
+# plt.axvline(dt_test[N_train], linestyle='--', linewidth=3, color='lime', label='<- train | test ->')
+ax.plot(dt_test, y_raw, color="grey", linewidth = 2.5, label="Raw")
 ax.plot(dt_test, y_test, color="blue", linewidth = 2.5, label="Conditioned")
-ax.plot(dt_test, yNN, '--', color="red", linewidth = 2.5, label="NN")
+ax.plot(dt_test, yNN1, color="red", linewidth = 2.5, label="NN-Nonstand")
+ax.plot(dt_test, yNN1, '--', color="orange", linewidth = 2.5, label="NN-Stand")
 ax.set_xlabel(" Date-time", fontsize=14)
 ax.set_ylabel(" Fault density", fontsize=14)
 plt.legend(loc=0, prop={"size":12}, facecolor="white", framealpha=1.0)
