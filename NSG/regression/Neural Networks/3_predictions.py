@@ -36,7 +36,7 @@ date_time = dpm.adjust_time_lag(y_df['Time stamp'].values,
                                 to_remove=max_lag)
 
 # Train and test data
-val_split = 0.2
+val_split = 0.15
 N, D = np.shape(X)
 N_train = N
 X_train, y_train = X[0:N_train], y[0:N_train]
@@ -55,22 +55,24 @@ from sklearn.metrics import mean_absolute_error as mae
 
 # Load trained model
 path_file = os.getcwd()+'\\NSG\\regression\\Neural Networks'
-model1 = keras.models.load_model(path_file+'\\1HL_1024_units_Nonstandardised_relu_B5518')
-model2 = keras.models.load_model(path_file+'\\1HL_1024_units_Standardised_relu_B5518')
+model1 = keras.models.load_model(path_file+'\\3HL_64_units_Nonstandardised_relu_B5518')
 
 # Predictions on test data
 yNN1 = model1.predict(X_test)
-yp_stand = model2.predict(X_test)
-yNN2 = scaler.inverse_transform(yp_stand)
+# yp_stand = model2.predict(X_test)
+# yNN2 = scaler.inverse_transform(yp_stand)
 
 print('MAE')
 print('Nonstand: ', mae(y_test, yNN1))
-print('Stand: ', mae(y_test, yNN2))
+# print('Stand: ', mae(y_test, yNN2))
 
 
 """
 Plots
 """
+# Region where test data is similar to the training data
+similar = range(21000,21500)
+
 fig, ax = plt.subplots()
 
 # Increase the size of the axis numbers
@@ -84,7 +86,8 @@ plt.fill_between(dt_test[N_train-int(N_train*val_split):], 50, color='pink', lab
 ax.plot(dt_test, y_raw, color="grey", linewidth = 2.5, label="Raw")
 ax.plot(dt_test, y_test, color="blue", linewidth = 2.5, label="Conditioned")
 ax.plot(dt_test, yNN1, color="red", linewidth = 2.5, label="NN-Nonstand")
-ax.plot(dt_test, yNN1, '--', color="orange", linewidth = 2.5, label="NN-Stand")
+plt.fill_between(date_time[similar], 50, color='lightgreen', alpha=0.6,
+                 label='test data similar to training')
 ax.set_xlabel(" Date-time", fontsize=14)
 ax.set_ylabel(" Fault density", fontsize=14)
 plt.legend(loc=0, prop={"size":12}, facecolor="white", framealpha=1.0)

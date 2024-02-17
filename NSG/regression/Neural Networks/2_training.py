@@ -12,6 +12,7 @@ import tensorflow as tf
 from tensorflow import keras
 from keras.callbacks import EarlyStopping
 
+# ! Best configuration 3HL-64, 32, 8, units, B=5518, lr=1e-4, epoch=3000, val-split=0.15
 """
 NSG data
 """
@@ -65,25 +66,28 @@ date_time = date_time[0:N]
 """
 Neural Network Training
 """
-import xlsxwriter
 from keras.layers import Dense, Dropout
+from sklearn.metrics import mean_absolute_error as mae
 
 # Architecture
 
 # get best configuration from the single layer analysis
 path = os.path.realpath('NSG/regression/Neural Networks')
-df = pd.read_csv(path+'\\single_layer.csv')
-units, batch = df[df['MAE'] == df['MAE'].min()][['units', 'batch']].values[0]
-units = [1024, 256, 128, 64, 16]
+# df = pd.read_csv(path+'\\single_layer.csv')
+# units, batch = df[df['MAE'] == df['MAE'].min()][['units', 'batch']].values[0]
+units = [1024, 256, 128, 64, 32, 8, 2]
 
-N_layers = 1
-N_units = units
+N_layers = 3
+N_units = units[3]
 architecture = '\\'+str(N_layers)+'HL_'+str(N_units)+'_units_'
 act = 'relu'
 model = keras.models.Sequential()
-model.add(Dense(units[1], name='hidden1', activation=act))
+model.add(Dense(N_units, name='hidden1', activation=act,
+                kernel_initializer=tf.keras.initializers.HeNormal()))
 model.add(Dropout(0.2))
-# model.add(Dense(units[3], name='hidden2', activation=act))
+model.add(Dense(units[4], name='hidden2', activation=act))
+model.add(Dropout(0.2))
+model.add(Dense(units[5], name='hidden3', activation=act))
 model.add(Dense(1, name= 'output', activation='linear'))
 
 # Compilation
@@ -92,20 +96,18 @@ model.compile(optimizer=keras.optimizers.AdamW(learning_rate=lr),
               loss='mean_absolute_error')
 
 # Model hyperparameters
-# B = [11036, 5518, 2759]
+# B = [11036, 5518, 2759, 1379, 690, 345, 172, 64, 32]
 B = [5518]
-epoch = 300
-val_split = 0.2
+epoch = 3000
+val_split = 0.15
 
 # Patient early stopping
-es = EarlyStopping(monitor='val_loss', mode='min', verbose=0, patience=3500)
+es = EarlyStopping(monitor='val_loss', mode='min', verbose=0, patience=2000)
 
-# # Define an Excel writer object and the target file
+# Define an Excel writer object and the target file
 cd = os.getcwd()+'\\NSG\\regression\\Neural Networks'
 name_model = cd+architecture+stand_label
-# writer = pd.ExcelWriter(cd+location+name)
 
-df = []
 for i in range(len(B)):
     print('B: ', B[i])
     trained = model.fit(X_train, y_train,
@@ -118,50 +120,53 @@ for i in range(len(B)):
     plt.figure()
     plt.plot(trained.history['loss'], label='train')
     plt.plot(trained.history['val_loss'], label='test')
-    plt.title(stand_label+" Units="+str(units)+" B="+str(B[i]))
+    plt.title(stand_label+" Units="+str(N_units)+" B="+str(B[i]))
     plt.xlabel("N of Epoch")
     plt.ylabel("Error (MAE)")
     plt.legend()
     
-    # print("Evaluation against the test data B: ", B[i])
-    # error = model.evaluate(X_test, y_test)
+    print("Evaluation against the test data B: ", B[i])
+    error = model.evaluate(X_test, y_test)
 
-#     # Save 
-#     d = {}
-#     d['architecture'] = architecture
-#     d['B'] = B[i]
-#     d['Learning rate'] = lr
-#     d['error'] = error
-#     df.append(pd.DataFrame(d, index=[0]))
+    # Predictions on test data
+    yNN = model.predict(X_test[N_train-int(N_train*val_split):], verbose=0)
+    error_test = mae(y_test[N_train-int(N_train*val_split):], yNN)
 
-#     df[i].to_excel(writer, sheet_name='B '+str(B[i]), index=False)
+    # Save 
+    d = {}
+    d['architecture'] = architecture
+    d['B'] = B[i]
+    d['Learning rate'] = lr
+    d['error'] = error
+    d['error_test'] = error_test
 
+    if i == 0:
+        df = pd.DataFrame(d, index=[0])
 
-# plt.show()
-# writer._save()
+    df = pd.concat([df, pd.DataFrame(d, index=[0])], ignore_index=True)
 
-# Predictions on test data
-yNN = model.predict(X_test, verbose=0)
-# yNN = scaler.inverse_transform(yp_stand)
-
-"""
-Plots
-"""
-fig, ax = plt.subplots()
-
-# Increase the size of the axis numbers
-plt.rcdefaults()
-plt.rc('xtick', labelsize=14)
-plt.rc('ytick', labelsize=14)
-
-fig.autofmt_xdate()
-# plt.axvline(date_time[N_train], linestyle='--', linewidth=3, color='lime', label='<- train | test ->')
-ax.plot(date_time, y_raw, color="grey", linewidth = 2.5, label="Raw")
-ax.plot(date_time, y_train, color="blue", linewidth = 2.5, label="Conditioned")
-ax.plot(date_time, yNN, '--', color="red", linewidth = 2.5, label="NN")
-plt.fill_between(date_time[N_train-int(N_train*val_split):], 50, color='pink', label='test data')
-ax.set_xlabel(" Date-time", fontsize=14)
-ax.set_ylabel(" Fault density", fontsize=14)
-plt.legend(loc=0, prop={"size":12}, facecolor="white", framealpha=1.0)
 
 plt.show()
+df.to_csv(df, index=False)
+
+# """
+# Plots
+# """
+# fig, ax = plt.subplots()
+
+# # Increase the size of the axis numbers
+# plt.rcdefaults()
+# plt.rc('xtick', labelsize=14)
+# plt.rc('ytick', labelsize=14)
+
+# fig.autofmt_xdate()
+# # plt.axvline(date_time[N_train], linestyle='--', linewidth=3, color='lime', label='<- train | test ->')
+# ax.plot(date_time, y_raw, color="grey", linewidth = 2.5, label="Raw")
+# ax.plot(date_time, y_train, color="blue", linewidth = 2.5, label="Conditioned")
+# ax.plot(date_time, yNN, '--', color="red", linewidth = 2.5, label="NN")
+# plt.fill_between(date_time[N_train-int(N_train*val_split):], 50, color='pink', label='test data')
+# ax.set_xlabel(" Date-time", fontsize=14)
+# ax.set_ylabel(" Fault density", fontsize=14)
+# plt.legend(loc=0, prop={"size":12}, facecolor="white", framealpha=1.0)
+
+# plt.show()
