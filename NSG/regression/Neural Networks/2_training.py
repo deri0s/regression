@@ -97,12 +97,12 @@ model.compile(optimizer=keras.optimizers.AdamW(learning_rate=lr),
 
 # Model hyperparameters
 # B = [11036, 5518, 2759, 1379, 690, 345, 172, 64, 32]
-B = [5518]
-epoch = 3000
+B = [32]
+epoch = 4000
 val_split = 0.15
 
 # Patient early stopping
-es = EarlyStopping(monitor='val_loss', mode='min', verbose=0, patience=2000)
+es = EarlyStopping(monitor='val_loss', mode='min', verbose=0, patience=500)
 
 # Define an Excel writer object and the target file
 cd = os.getcwd()+'\\NSG\\regression\\Neural Networks'
@@ -114,7 +114,7 @@ for i in range(len(B)):
                         batch_size=int(B[i]), epochs=epoch,
                         validation_split=val_split, verbose=0, callbacks=[es])
     
-    model.save(name_model+'_'+str(act)+'_B'+str(B[i]))
+    # model.save(name_model+'_'+str(act)+'_B'+str(B[i]))
 
     # Plot accuracy of the model after each epoch.
     plt.figure()
@@ -147,7 +147,7 @@ for i in range(len(B)):
 
 
 plt.show()
-df.to_csv(df, index=False)
+df.to_csv(name_model+'_'+str(act)+'_B'+str(B[0])+'.csv', index=False)
 
 # """
 # Plots
