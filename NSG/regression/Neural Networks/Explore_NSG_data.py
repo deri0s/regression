@@ -138,4 +138,22 @@ plt.plot(date_time, y0, linewidth = 2.5, c='blue', label='Nonstandardised')
 plt.fill_between(date_time[similar], 50, color='pink', label='test data similar to training')
 plt.title('NSG Fault Density Data')
 plt.legend()
+
+"""
+TARGET ANALYSIS
+"""
+
+# Use the statsmodels methods to extract the target's: trend, seasonal,
+# and data not explained by the previous two (residuals in statsmodels)
+from statsmodels.tsa.seasonal import MSTL
+from pandas.plotting import autocorrelation_plot as autoplot
+mstl = MSTL(y0, periods=[24, 24 * 7])
+res = mstl.fit()
+
+plt.figure()
+res.plot()
+
+plt.figure()
+autoplot(y0)
+
 plt.show()

@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler as ss
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
 from NSG import data_processing_methods as dpm
 from NSG import *
@@ -27,8 +28,11 @@ t_df = pd.read_excel(file, sheet_name='time')
 
 # Pre-Process training data
 X, y0, N0, D, max_lag, time_lags = dpm.align_arrays(X_df, y_df, t_df)
-scaler = ss().fit(np.vstack(y0))
-y = scaler.transform(np.vstack(y0))
+
+# Scale data using MinMaxScaler. Do not use StandardScaler since the NN training stage
+# struggles to find a solution.
+scaler = MinMaxScaler(feature_range=(0,1))
+y = scaler.fit_transform(np.vstack(y0))
 
 # Process raw targets
 # Just removes the first max_lag points from the date_time array.
@@ -45,21 +49,21 @@ date_time = dpm.adjust_time_lag(y_df['Time stamp'].values,
 # Train and test data
 N, D = np.shape(X)
 N_train = N
-stand = 0
+stand = 1
 
-def get_train_test(X: np.array, y:np.array, stand: bool):
+def get_train_test(X: np.array, y:np.array, y_orig: np.array, stand: bool):
     if stand:
         X_train, y_train = X[0:N_train], y[0:N_train]
-        X_test, y_test = X[0:N], y[0:N]
+        X_test, y_test = X[0:N], y_orig[0:N]
         label = 'Standardised'
     else:
-        X_train, y_train = X[0:N_train], y0[0:N_train]
-        X_test, y_test = X[0:N], y0[0:N]
+        X_train, y_train = X[0:N_train], y_orig[0:N_train]
+        X_test, y_test = X[0:N], y_orig[0:N]
         label = 'Nonstandardised'
 
     return X_train, y_train, X_test, y_test, label
 
-X_train, y_train, X_test, y_test, stand_label = get_train_test(X, y, stand)
+X_train, y_train, X_test, y_test, stand_label = get_train_test(X, y, y0, stand)
 date_time = date_time[0:N]
 
 
@@ -97,7 +101,7 @@ model.compile(optimizer=keras.optimizers.AdamW(learning_rate=lr),
 
 # Model hyperparameters
 # B = [11036, 5518, 2759, 1379, 690, 345, 172, 64, 32]
-B = [32]
+B = [64]
 epoch = 4000
 val_split = 0.15
 
@@ -114,7 +118,7 @@ for i in range(len(B)):
                         batch_size=int(B[i]), epochs=epoch,
                         validation_split=val_split, verbose=0, callbacks=[es])
     
-    # model.save(name_model+'_'+str(act)+'_B'+str(B[i]))
+    model.save(name_model+'_'+str(act)+'_B'+str(B[i]))
 
     # Plot accuracy of the model after each epoch.
     plt.figure()
@@ -129,8 +133,15 @@ for i in range(len(B)):
     error = model.evaluate(X_test, y_test)
 
     # Predictions on test data
-    yNN = model.predict(X_test[N_train-int(N_train*val_split):], verbose=0)
-    error_test = mae(y_test[N_train-int(N_train*val_split):], yNN)
+    yNN = model.predict(X_test, verbose=0)
+
+    if stand_label:
+        yNN = scaler.inverse_transform(yNN)
+
+    yNN_test = yNN[N_train-int(N_train*val_split):]
+    error_test = mae(y_test[N_train-int(N_train*val_split):], yNN_test)
+    print('y-test: ', np.shape(y_test[N_train-int(N_train*val_split):]),
+          ' yNN-test: ', np.shape(yNN_test))
 
     # Save 
     d = {}
@@ -145,28 +156,26 @@ for i in range(len(B)):
 
     df = pd.concat([df, pd.DataFrame(d, index=[0])], ignore_index=True)
 
-
-plt.show()
+# plt.show()
 df.to_csv(name_model+'_'+str(act)+'_B'+str(B[0])+'.csv', index=False)
 
 # """
 # Plots
 # """
-# fig, ax = plt.subplots()
+fig, ax = plt.subplots()
 
-# # Increase the size of the axis numbers
-# plt.rcdefaults()
-# plt.rc('xtick', labelsize=14)
-# plt.rc('ytick', labelsize=14)
+# Increase the size of the axis numbers
+plt.rcdefaults()
+plt.rc('xtick', labelsize=14)
+plt.rc('ytick', labelsize=14)
 
-# fig.autofmt_xdate()
-# # plt.axvline(date_time[N_train], linestyle='--', linewidth=3, color='lime', label='<- train | test ->')
-# ax.plot(date_time, y_raw, color="grey", linewidth = 2.5, label="Raw")
-# ax.plot(date_time, y_train, color="blue", linewidth = 2.5, label="Conditioned")
-# ax.plot(date_time, yNN, '--', color="red", linewidth = 2.5, label="NN")
-# plt.fill_between(date_time[N_train-int(N_train*val_split):], 50, color='pink', label='test data')
-# ax.set_xlabel(" Date-time", fontsize=14)
-# ax.set_ylabel(" Fault density", fontsize=14)
-# plt.legend(loc=0, prop={"size":12}, facecolor="white", framealpha=1.0)
+fig.autofmt_xdate()
+ax.plot(date_time, y_raw, color="grey", linewidth = 2.5, label="Raw")
+ax.plot(date_time, y0, color="blue", linewidth = 2.5, label="Conditioned")
+ax.plot(date_time, yNN, '--', color="red", linewidth = 2.5, label="NN")
+plt.fill_between(date_time[N_train-int(N_train*val_split):], 50, color='pink', label='test data')
+ax.set_xlabel(" Date-time", fontsize=14)
+ax.set_ylabel(" Fault density", fontsize=14)
+plt.legend(loc=0, prop={"size":12}, facecolor="white", framealpha=1.0)
 
-# plt.show()
+plt.show()
