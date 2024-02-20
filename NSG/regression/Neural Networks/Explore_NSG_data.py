@@ -121,18 +121,19 @@ for i in range(np.shape(Xt_test)[0]):
     ax[i].plot(Xt_test[i][:, 0], Xt_test[i][:, 1], 'o', markersize=0.9,
                c='orange', label='$increment$ of testing data', alpha=0.6)
     ax[i].annotate(str(i), xy=(np.max(np.max(Xt[:, 0]))/2, np.max(np.max(Xt[:, 0]))/2),
-                   c='pink', fontsize=20)
+                   c='red', fontsize=20)
     ax[i].set_xlim(np.min(Xt[:, 0])-1, np.max(np.max(Xt[:, 0])))
     ax[i].set_ylim(np.min(Xt[:, 0]), np.max(np.max(Xt[:, 1])))
 
 # DateTime where the training and testing data overlapped
-print(f"Overlapping from {date_time[N_train+1000]} to {date_time[N_train+1500]}")
+print('\n Test data that shows to be within a training region identified')
+print(f"from {date_time[N_train+1000]} to {date_time[N_train+1500]}")
 
 similar = range(N_train+1000,N_train+1500)
 fig = plt.figure()
 fig.autofmt_xdate()
-plt.plot(date_time, y_raw, linewidth = 2.5, c='black', label='Raw')
-plt.plot(date_time, y, linewidth = 2.5, c='orange', label='Standardised')
+plt.plot(date_time, y_raw, linewidth = 2.5, c='grey', label='Raw')
+plt.plot(date_time, y, linewidth = 2.5, c='red', label='Standardised')
 plt.plot(date_time, y0, linewidth = 2.5, c='blue', label='Nonstandardised')
 # plt.plot(y_df['Time stamp'].values, y_df['furnace_faults'].values, '--', linewidth = 2.5, c='lightgreen', label='y-df')
 plt.fill_between(date_time[similar], 50, color='pink', label='test data similar to training')
@@ -141,19 +142,54 @@ plt.legend()
 
 """
 TARGET ANALYSIS
+
+1) Use the statsmodels methods to extract the target's: trend, seasonal,
+and data not explained by the previous two (residuals in statsmodels)
+      - To do this I need to input to the statsmodels methods continous data
+
+2) Use the pandas method `autocorrelation_plot` to determine if there is the
+targets show autocorrelation
 """
 
-# Use the statsmodels methods to extract the target's: trend, seasonal,
-# and data not explained by the previous two (residuals in statsmodels)
 from statsmodels.tsa.seasonal import MSTL
 from pandas.plotting import autocorrelation_plot as autoplot
-mstl = MSTL(y0, periods=[24, 24 * 7])
-res = mstl.fit()
 
-plt.figure()
+# Identify jumps occurring at the minute level
+date_time = [pd.Timestamp(date_time[i]) for i in range(len(date_time))]
+
+min_jumps = [i for i,v in enumerate(range(1, len(date_time))) if (date_time[i-1].minute - date_time[i].minute) == 20]
+jumps = y_df['Time stamp'][min_jumps]
+print('\njumps: \n', jumps)
+
+dtc = date_time[jumps.index[1]+1: jumps.index[2]]
+yc = y0[jumps.index[1]+1: jumps.index[2]]
+y_rawc = y_raw[jumps.index[1]+1: jumps.index[2]]
+
+# similar = range(N_train+1000,N_train+1500)
+fig = plt.figure()
+fig.autofmt_xdate()
+plt.plot(date_time, y_raw, linewidth = 2.5, c='grey', label='Raw')
+plt.plot(date_time, y0, linewidth = 2.5, c='blue', label='Conditioned')
+for j in jumps.index:
+    plt.axvline(date_time[j], linestyle='--', linewidth=3, color='lime', label='<- train | test ->'+str(j))
+plt.title('Data jumps')
+plt.legend()
+
+# get the second continuous data region
+fig = plt.figure()
+fig.autofmt_xdate()
+plt.plot(dtc, y_rawc, linewidth = 2.5, c='grey', label='Raw')
+plt.plot(dtc, yc, linewidth = 2.5, c='blue', label='Conditioned')
+plt.title('Continous region')
+plt.legend()
+
+min_per = 24*3
+week_per = min_per*7
+mstl = MSTL(yc, periods=[min_per, week_per])
+res = mstl.fit()
 res.plot()
 
 plt.figure()
-autoplot(y0)
+autoplot(yc)
 
 plt.show()

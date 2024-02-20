@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler as ss
+from sklearn.preprocessing import MinMaxScaler
 from NSG import data_processing_methods as dpm
 
 """
@@ -18,10 +19,9 @@ y_raw_df = pd.read_excel(file, sheet_name='y_raw_training')
 t_df = pd.read_excel(file, sheet_name='time')
 
 # Pre-Process training data
-X0, y0, N0, D, max_lag, time_lags = dpm.align_arrays(X_df, y_df, t_df)
-scaler = ss().fit(np.vstack(y0))
-X = ss().fit(X0).transform(X0)
-y = scaler.transform(np.vstack(y0))
+X, y0, N0, D, max_lag, time_lags = dpm.align_arrays(X_df, y_df, t_df)
+scaler = MinMaxScaler(feature_range=(0,1))
+y = scaler.fit_transform(np.vstack(y0))
 
 # Process raw targets
 # Just removes the first max_lag points from the date_time array.
@@ -55,16 +55,23 @@ from sklearn.metrics import mean_absolute_error as mae
 
 # Load trained model
 path_file = os.getcwd()+'\\NSG\\regression\\Neural Networks'
-model1 = keras.models.load_model(path_file+'\\3HL_64_units_Nonstandardised_relu_B5518')
+name = '\\3HL_64_units_Standardised_relu_B5518_best_testing'
+model1 = keras.models.load_model(path_file+name)
+model2 = keras.models.load_model(path_file+'\\2HL_64_units_Nonstandardised_relu_B32')
 
 # Predictions on test data
 yNN1 = model1.predict(X_test)
-# yp_stand = model2.predict(X_test)
-# yNN2 = scaler.inverse_transform(yp_stand)
+yNN2 = model2.predict(X_test)
+
+if 'Standardised' in name:
+    print('standardised')
+    yNN1 = scaler.inverse_transform(yNN1)
+else:
+    print('nonstandardised')
 
 print('MAE')
-print('Nonstand: ', mae(y_test, yNN1))
-# print('Stand: ', mae(y_test, yNN2))
+print('Stand: ', mae(y_test, yNN1))
+print('Non-stand: ', mae(y_test, yNN2))
 
 
 """
@@ -82,10 +89,10 @@ plt.rc('ytick', labelsize=14)
 
 fig.autofmt_xdate()
 plt.fill_between(dt_test[N_train-int(N_train*val_split):], 50, color='pink', label='test data')
-# plt.axvline(dt_test[N_train], linestyle='--', linewidth=3, color='lime', label='<- train | test ->')
 ax.plot(dt_test, y_raw, color="grey", linewidth = 2.5, label="Raw")
 ax.plot(dt_test, y_test, color="blue", linewidth = 2.5, label="Conditioned")
-ax.plot(dt_test, yNN1, color="red", linewidth = 2.5, label="NN-Nonstand")
+ax.plot(dt_test, yNN1, color="red", linewidth = 2.5, label="NN-Standard")
+ax.plot(dt_test, yNN2, color="orange", linewidth = 2.5, label="NN-Nonstand")
 plt.fill_between(date_time[similar], 50, color='lightgreen', alpha=0.6,
                  label='test data similar to training')
 ax.set_xlabel(" Date-time", fontsize=14)

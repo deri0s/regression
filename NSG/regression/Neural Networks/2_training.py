@@ -29,11 +29,6 @@ t_df = pd.read_excel(file, sheet_name='time')
 # Pre-Process training data
 X, y0, N0, D, max_lag, time_lags = dpm.align_arrays(X_df, y_df, t_df)
 
-# Scale data using MinMaxScaler. Do not use StandardScaler since the NN training stage
-# struggles to find a solution.
-scaler = MinMaxScaler(feature_range=(0,1))
-y = scaler.fit_transform(np.vstack(y0))
-
 # Process raw targets
 # Just removes the first max_lag points from the date_time array.
 y_raw = dpm.adjust_time_lag(y_raw_df['raw_furnace_faults'].values,
@@ -51,7 +46,13 @@ N, D = np.shape(X)
 N_train = N
 stand = 1
 
-def get_train_test(X: np.array, y:np.array, y_orig: np.array, stand: bool):
+# Scale data using MinMaxScaler. Do not use StandardScaler since the NN training stage
+# struggles to find a solution.
+scaler = MinMaxScaler(feature_range=(0,1))
+
+def get_train_test(X: np.array, y_orig: np.array, stand: bool):
+    y = scaler.fit_transform(np.vstack(y0))
+
     if stand:
         X_train, y_train = X[0:N_train], y[0:N_train]
         X_test, y_test = X[0:N], y_orig[0:N]
@@ -63,7 +64,7 @@ def get_train_test(X: np.array, y:np.array, y_orig: np.array, stand: bool):
 
     return X_train, y_train, X_test, y_test, label
 
-X_train, y_train, X_test, y_test, stand_label = get_train_test(X, y, y0, stand)
+X_train, y_train, X_test, y_test, stand_label = get_train_test(X, y0, stand)
 date_time = date_time[0:N]
 
 
@@ -73,12 +74,8 @@ Neural Network Training
 from keras.layers import Dense, Dropout
 from sklearn.metrics import mean_absolute_error as mae
 
-# Architecture
-
 # get best configuration from the single layer analysis
 path = os.path.realpath('NSG/regression/Neural Networks')
-# df = pd.read_csv(path+'\\single_layer.csv')
-# units, batch = df[df['MAE'] == df['MAE'].min()][['units', 'batch']].values[0]
 units = [1024, 256, 128, 64, 32, 8, 2]
 
 N_layers = 3
@@ -101,8 +98,8 @@ model.compile(optimizer=keras.optimizers.AdamW(learning_rate=lr),
 
 # Model hyperparameters
 # B = [11036, 5518, 2759, 1379, 690, 345, 172, 64, 32]
-B = [64]
-epoch = 4000
+B = [32]
+epoch = 3000
 val_split = 0.15
 
 # Patient early stopping
@@ -138,30 +135,29 @@ for i in range(len(B)):
     if stand_label:
         yNN = scaler.inverse_transform(yNN)
 
-    yNN_test = yNN[N_train-int(N_train*val_split):]
-    error_test = mae(y_test[N_train-int(N_train*val_split):], yNN_test)
-    print('y-test: ', np.shape(y_test[N_train-int(N_train*val_split):]),
-          ' yNN-test: ', np.shape(yNN_test))
+    yNN_test = yNN[-int(N_train*val_split):]
+    error_test = mae(y_test[-int(N_train*val_split):], yNN_test)
+    print('\nMAE test:', error_test)
 
-    # Save 
-    d = {}
-    d['architecture'] = architecture
-    d['B'] = B[i]
-    d['Learning rate'] = lr
-    d['error'] = error
-    d['error_test'] = error_test
+#     # Save
+#     d = {}
+#     d['architecture'] = architecture
+#     d['B'] = B[i]
+#     d['Learning rate'] = lr
+#     d['error'] = error
+#     d['error_test'] = error_test
 
-    if i == 0:
-        df = pd.DataFrame(d, index=[0])
+#     if i == 0:
+#         df = pd.DataFrame(d, index=[0])
+#     else:
+#         df = pd.concat([df, pd.DataFrame(d, index=[0])], ignore_index=True)
 
-    df = pd.concat([df, pd.DataFrame(d, index=[0])], ignore_index=True)
-
-# plt.show()
-df.to_csv(name_model+'_'+str(act)+'_B'+str(B[0])+'.csv', index=False)
-
-# """
-# Plots
-# """
+# # plt.show()
+# df.to_csv(name_model+'_'+str(act)+'_B'+str(B[0])+'.csv', index=False)
+print('sali del loop y guarde')
+"""
+Plots
+"""
 fig, ax = plt.subplots()
 
 # Increase the size of the axis numbers
