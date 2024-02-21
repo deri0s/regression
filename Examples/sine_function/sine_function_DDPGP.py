@@ -19,7 +19,8 @@ labels_df = pd.read_excel(file_name, sheet_name='Real labels')
 X = df['X'].values
 Y = df['Y'].values
 N = len(Y)
-xNew = xNewdf['X_star'].values
+xNew = df['X'].values
+# xNew = xNewdf['X_star'].values
 
 # Get real labels
 c0 = labels_df['Noise0'].values
@@ -34,32 +35,38 @@ c2 = [int(i) for i in c2]
 indices = [c0, c1, c2]
     
 
+# ! The following covariance function only works for K=2
+# ! Use a single kernel or add the K=k number of kernels otherwise
 # Covariance functions
 se = 1**2 * RBF(length_scale=0.5, length_scale_bounds=(0.07, 0.9))
 wn = WhiteKernel(noise_level=0.5**2, noise_level_bounds=(1e-6,0.7))
 
 kernel = se + wn
 
-se = 1**2 * RBF(length_scale=1.7, length_scale_bounds=(1e-6,1e3))
+# Initialise the 2nd exp with the following hyper to obtain better results 
+se = 1**2 * RBF(length_scale=1.7, length_scale_bounds=(1e-3,1e3))
 kernels = []
 kernels.append(kernel)
 kernels.append(se + wn)
 
-del se, wn
-
 # The DPGP model
 rgp = DPGP(X, Y, init_K=7, kernel=kernel, normalise_y=True)
 rgp.train()
-muGP, stdGP = rgp.predict(xNew, 2*N)
+muGP, stdGP = rgp.predict(xNew, N)
 print('DPGP init stds: ', rgp.init_pies)
 print('DPGP init pies: ', rgp.init_sigmas)
 
 # The DDPGP model
 N_GPs = 2
+# # Uncomment if the all kernel hyper can be initi with the same values
+# # Not the case for the sine function
+# kernels = []
+# for k in range(N_GPs):
+#     kernels.append(kernel)
+
 dgp = DDPGP(X, Y, N_GPs, 7, kernels, normalise_y=True)
 dgp.train()
 muMix, stdMix, betas = dgp.predict(xNew)
-print('que es: ', np.shape(muMix))
 
 ### CALCULATING THE OVERALL MSE
 F = 150 * xNew * np.sin(xNew)
@@ -82,6 +89,7 @@ for k in range(N_GPs):
                 color='black')
     ax.plot(xNew, betas[:,k], color=c[k], linewidth=2,
             label='Beta: '+str(k))
+    plt.legend()
     advance += step
 
 ax.set_xlabel('Date-time')

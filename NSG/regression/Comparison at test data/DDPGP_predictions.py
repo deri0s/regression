@@ -2,9 +2,8 @@ import sys
 import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
-sys.path.insert(0, 'C:\Diego\PhD\Code\phdCode')
 from sklearn.gaussian_process.kernels import RBF, WhiteKernel
-from DDPGP import DistributedDPGP as DDPGP
+from BayesianNonparametrics.DPGP import DirichletProcessGaussianProcess as DPGP
 from NSG import data_processing_methods as dpm
 from sklearn.decomposition import PCA
 

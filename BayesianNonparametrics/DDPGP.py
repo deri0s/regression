@@ -25,6 +25,9 @@ class DistributedDPGP(GPR):
         self.Y = np.vstack(Y)  # Targets always vstacked
         self.N = len(Y)        # No. training points
         self.N_GPs = N_GPs     # No. GPs
+
+        # usefull to plot
+        self.step = int(len(self.X)/self.N_GPs)
         
         # The upper bound of the number of Gaussian noise sources
         self.init_K = init_K
@@ -67,7 +70,7 @@ class DistributedDPGP(GPR):
                 # All the RGP experts share the same hyperparameters
                 rgp = DPGP(self.X_split[m], self.Y_split[m],
                            init_K=self.init_K, kernel=self.kernel)
-                rgp.train()
+                rgp.train(tol)
                 # Print the optimal hyperparameters
                 print('\n Expert ', m, " trained")
                 print('Hyper exper: -> ', rgp.kernel_, '\n')
@@ -121,7 +124,6 @@ class DistributedDPGP(GPR):
             fig, ax = plt.subplots()
             x_plot = np.linspace(0,self.X[-1], len(self.X))
             x_star_plot = np.linspace(0, X_star[-1], len(X_star))
-            step = int(len(self.X)/self.N_GPs)
             advance = 0
             for i in range(self.N_GPs):
                 mu, sigma = self.rgps[i].predict(X_star)
@@ -130,23 +132,32 @@ class DistributedDPGP(GPR):
                 
                 # Plot the predictions of each expert
                 print('\n Advance: ', advance)
-                ax.plot(x_star_plot, mu, color=self.c[i])
+                ax.plot(x_star_plot, mu, color=self.c[i], label='RGP('+str(i)+')')
                 plt.axvline(x_plot[int(advance)], linestyle='--', linewidth=3,
-                            color='black')              
-                advance += step
+                            color='black')
+                plt.title('Expert predictions at each region')
+                plt.legend()
+                advance += self.step
 
         # Calculate the normalised predictive power of the predictions made
         # by each GP. Note that, we are assuming that k(x_star, x_star)=1
         betas = np.zeros([N_star, self.N_GPs])
         # Add Jitter term to prevent numeric error
-        prior_std = 1 + 1e-6
-        # betas
-        for i in range(self.N_GPs):
-            betas[:, i] = 0.5*(np.log(prior_std) - np.log(sigma_all[:, i]**2))
+        # prior_std = 1 + 1e-6
+        # # betas
+        # for i in range(self.N_GPs):
+        #     betas[:, i] = 0.5*(np.log(prior_std) - np.log(sigma_all[:, i]**2))
 
-        # Normalise beta
-        for i in range(N_star):
-            betas[i, :] = betas[i, :] / np.sum(betas[i, :])
+        advance = 0
+        for k in range(self.N_GPs):
+            betas[advance:(advance+self.step), k] = 1
+            # print(f"from: {advance} to: {advance+self.step}")
+            # print('betas: \n', betas[:, k])
+            advance += self.step
+
+        # Do not Normalise beta
+        # for i in range(N_star):
+        #     betas[i, :] = betas[i, :] / np.sum(betas[i, :])
 
         # Compute the rBCM precision
         prec_star = np.zeros(N_star)
