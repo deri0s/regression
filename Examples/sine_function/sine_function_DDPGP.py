@@ -1,17 +1,16 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-import sys
-sys.path.append('../..')
-from sklearn.gaussian_process.kernels import RBF, WhiteKernel
-from DPGP import DirichletProcessGaussianProcess as DPGP
-from DDPGP import DistributedDPGP as DDPGP
 from sklearn.metrics import mean_squared_error
+from sklearn.gaussian_process.kernels import RBF, WhiteKernel
+from BayesianNonparametrics.DPGP import DirichletProcessGaussianProcess as DPGP
+from BayesianNonparametrics.DDPGP import DistributedDPGP as DDPGP
+
 
 plt.close('all')
 
 # Read excel file
-file_name = 'Synthetic.xlsx'
+file_name = 'Examples//sine_function//Synthetic.xlsx'
 df = pd.read_excel(file_name, sheet_name='Training')
 xNewdf = pd.read_excel(file_name, sheet_name='Testing')
 labels_df = pd.read_excel(file_name, sheet_name='Real labels')
@@ -35,7 +34,7 @@ c2 = [int(i) for i in c2]
 indices = [c0, c1, c2]
     
 
-### The covariance function
+# Covariance functions
 se = 1**2 * RBF(length_scale=0.5, length_scale_bounds=(0.07, 0.9))
 wn = WhiteKernel(noise_level=0.5**2, noise_level_bounds=(1e-6,0.7))
 
@@ -60,7 +59,7 @@ N_GPs = 2
 dgp = DDPGP(X, Y, N_GPs, 7, kernels, normalise_y=True)
 dgp.train()
 muMix, stdMix, betas = dgp.predict(xNew)
-
+print('que es: ', np.shape(muMix))
 
 ### CALCULATING THE OVERALL MSE
 F = 150 * xNew * np.sin(xNew)
@@ -97,7 +96,7 @@ print('Noise Stds: ', rgp.stds)
 print('Hyperparameters: ', rgp.hyperparameters)
 
 
-# ### Regression performance: Comparison with a HGP
+# Regression performance:
 plt.figure()
 advance = 0
 for k in range(N_GPs):
@@ -115,4 +114,33 @@ plt.xlabel('x', fontsize=16)
 plt.ylabel('f(x)', fontsize=16)
 plt.legend(prop={"size":20})
 
-# plt.show()
+# ----------------------------------------------------------------------------
+# CONFIDENCE BOUNDS
+# ----------------------------------------------------------------------------
+
+color_iter = ['green', 'orange', 'red']
+enumerate_real = [i for i in range(3)]
+enumerate_K = [i for i in range(rgp.K_opt)]
+
+plt.figure()
+plt.fill_between(xNew, muMix[:,0] + 3*stdMix[:,0],
+                 muMix[:,0] - 3*stdMix[:,0],
+                 alpha=0.5,color='lightgreen',
+                 label='Confidence \nBounds (EM-GP)')
+
+plt.fill_between(xNew, muGP[:,0] + 3*stdGP[:,0],
+                 muGP[:,0] - 3*stdGP[:,0],
+                 alpha=0.5,color='green',
+                 label='Confidence \nBounds (EM-GP)')
+
+nl = ['Noise level 0', 'Noise level 1', 'Noise level 2']
+for i, (k, c) in enumerate(zip(enumerate_K, color_iter)):
+    plt.plot(X[rgp.indices[k]], Y[rgp.indices[k]], 'o',color=c,
+             markersize = 9, label=nl[k])
+    
+plt.plot(xNew, muMix, linewidth=2.5, color='green', label='EM-GP')
+plt.xlabel('x', fontsize=16)
+plt.ylabel('f(x)', fontsize=16)
+plt.legend(prop={"size":20})
+
+plt.show()

@@ -1,6 +1,6 @@
 import numpy as np
 from sklearn.gaussian_process import GaussianProcessRegressor as GPR
-from DPGP import DirichletProcessGaussianProcess as DPGP
+from BayesianNonparametrics.DPGP import DirichletProcessGaussianProcess as DPGP
 import matplotlib.pyplot as plt
 
 """
@@ -136,27 +136,13 @@ class DistributedDPGP(GPR):
                 advance += step
 
         # Calculate the normalised predictive power of the predictions made
-        # by each GP. Note that here we are assuming that k(x_star, x_star)=1
-        # to simplify the calculation.
+        # by each GP. Note that, we are assuming that k(x_star, x_star)=1
         betas = np.zeros([N_star, self.N_GPs])
-        prior_vars = np.zeros(self.N_GPs)
+        # Add Jitter term to prevent numeric error
+        prior_std = 1 + 1e-6
+        # betas
         for i in range(self.N_GPs):
-            if self.normalise_y:
-                # noise_std = np.sqrt(self.rgps[i].stds[0])*\
-                #             np.sqrt(np.exp(self.rgps[i].kernel_.theta[-1]))
-                # noise_std = np.sqrt(np.exp(self.rgps[i].kernel_.theta[-1]))
-                noise_std = self.rgps[i].stds[0]
-                print('\n\n std norm: ', np.sqrt(np.exp(self.rgps[i].kernel_.theta[-1])),
-                      '\n std: ', self.rgps[i].stds[0]*np.sqrt(np.exp(self.rgps[i].kernel_.theta[-1])),
-                      '\n clustering: ', self.rgps[i].stds[0])
-            else:
-                noise_std = np.sqrt(np.exp(self.rgps[i].kernel_.theta[-1]))
-                print('Std: ', noise_std)
-
-            # Add Jitter term to prevent numeric error
-            # prior_var = 1 + np.exp(self.rgps[i].kernel_.theta[-1]) + 1e-8
-            prior_std = 1 + 0.7 + 1e-8
-            betas[:, i] = 0.5*(np.log(prior_std) - np.log(sigma_all[:, i]))
+            betas[:, i] = 0.5*(np.log(prior_std) - np.log(sigma_all[:, i]**2))
 
         # Normalise beta
         for i in range(N_star):
@@ -166,9 +152,6 @@ class DistributedDPGP(GPR):
         prec_star = np.zeros(N_star)
         for i in range(self.N_GPs):
             prec_star += betas[:, i] * sigma_all[:, i]**-2
-            
-            # prec_star += (betas[:, i] * sigma_all[:, i]**-2
-            #               + (1./self.N_GPs - betas[:,i])*prior_vars[i]**(-1))
 
         # Compute the rBCM predictive variance and standard deviation
         var_star = prec_star**-1

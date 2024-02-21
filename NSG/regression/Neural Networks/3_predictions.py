@@ -2,7 +2,6 @@ import paths
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import StandardScaler as ss
 from sklearn.preprocessing import MinMaxScaler
 from NSG import data_processing_methods as dpm
 
