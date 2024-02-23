@@ -12,15 +12,14 @@ plt.close('all')
 # Read excel file
 file_name = 'Examples//sine_function//Synthetic.xlsx'
 df = pd.read_excel(file_name, sheet_name='Training')
-xNewdf = pd.read_excel(file_name, sheet_name='Testing')
+x_test_df = pd.read_excel(file_name, sheet_name='Testing')
 labels_df = pd.read_excel(file_name, sheet_name='Real labels')
 
 # Get training data
 X = df['X'].values
 Y = df['Y'].values
 N = len(Y)
-xNew = df['X'].values
-# xNew = xNewdf['X_star'].values
+xNew = x_test_df['X_star'].values
 
 # Get real labels
 c0 = labels_df['Noise0'].values
@@ -35,8 +34,8 @@ c2 = [int(i) for i in c2]
 indices = [c0, c1, c2]
     
 
-# ! The following covariance function only works for K=2
-# ! Use a single kernel or add the K=k number of kernels otherwise
+# ! The following covariance function only works for K=2. Use a
+# ! single kernel or add the K=k number of kernels, otherwise
 # Covariance functions
 se = 1**2 * RBF(length_scale=0.5, length_scale_bounds=(0.07, 0.9))
 wn = WhiteKernel(noise_level=0.5**2, noise_level_bounds=(1e-6,0.7))
@@ -58,8 +57,8 @@ print('DPGP init pies: ', rgp.init_sigmas)
 
 # The DDPGP model
 N_GPs = 2
-# # Uncomment if the all kernel hyper can be initi with the same values
-# # Not the case for the sine function
+# Uncomment if the all kernel hyper can be initi with the same values
+# Not the case for the sine function
 # kernels = []
 # for k in range(N_GPs):
 #     kernels.append(kernel)

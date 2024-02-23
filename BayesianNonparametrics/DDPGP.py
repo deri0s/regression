@@ -1,4 +1,5 @@
 import numpy as np
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.gaussian_process import GaussianProcessRegressor as GPR
 from BayesianNonparametrics.DPGP import DirichletProcessGaussianProcess as DPGP
 import matplotlib.pyplot as plt
@@ -26,9 +27,6 @@ class DistributedDPGP(GPR):
         self.N = len(Y)        # No. training points
         self.N_GPs = N_GPs     # No. GPs
 
-        # usefull to plot
-        self.step = int(len(self.X)/self.N_GPs)
-        
         # The upper bound of the number of Gaussian noise sources
         self.init_K = init_K
         self.kernel = kernel
@@ -122,42 +120,37 @@ class DistributedDPGP(GPR):
                 sigma_all[:, i] = np.asarray(full_std_exp)
         else:
             fig, ax = plt.subplots()
-            x_plot = np.linspace(0,self.X[-1], len(self.X))
             x_star_plot = np.linspace(0, X_star[-1], len(X_star))
             advance = 0
+            step = int(len(X_star)/self.N_GPs)
             for i in range(self.N_GPs):
                 mu, sigma = self.rgps[i].predict(X_star)
                 mu_all[:, i] = mu[:, 0]
                 sigma_all[:, i] = sigma[:, 0]
                 
                 # Plot the predictions of each expert
-                print('\n Advance: ', advance)
-                ax.plot(x_star_plot, mu, color=self.c[i], label='RGP('+str(i)+')')
-                plt.axvline(x_plot[int(advance)], linestyle='--', linewidth=3,
-                            color='black')
-                plt.title('Expert predictions at each region')
-                plt.legend()
-                advance += self.step
+                ax.plot(mu, color=self.c[i], label='RGP('+str(i)+')')
+                plt.axvline(int(advance), linestyle='--', linewidth=3,
+                color='black')
+                advance += step
+            
+            # draw a line dividing training and test data
+            plt.axvline(self.N, linestyle='--', linewidth=3, color='black')
+            plt.title('Expert predictions at each region')
+            plt.legend()
 
         # Calculate the normalised predictive power of the predictions made
         # by each GP. Note that, we are assuming that k(x_star, x_star)=1
         betas = np.zeros([N_star, self.N_GPs])
         # Add Jitter term to prevent numeric error
-        # prior_std = 1 + 1e-6
-        # # betas
-        # for i in range(self.N_GPs):
-        #     betas[:, i] = 0.5*(np.log(prior_std) - np.log(sigma_all[:, i]**2))
+        prior_std = 1 + 1e-6
+        # betas
+        for i in range(self.N_GPs):
+            betas[:, i] = 0.5*(np.log(prior_std) - np.log(sigma_all[:, i]**2))
 
-        advance = 0
-        for k in range(self.N_GPs):
-            betas[advance:(advance+self.step), k] = 1
-            # print(f"from: {advance} to: {advance+self.step}")
-            # print('betas: \n', betas[:, k])
-            advance += self.step
-
-        # Do not Normalise beta
-        # for i in range(N_star):
-        #     betas[i, :] = betas[i, :] / np.sum(betas[i, :])
+        # Normalise betas
+        scaler = MinMaxScaler(feature_range=(0,1))
+        betas = scaler.fit_transform(betas)
 
         # Compute the rBCM precision
         prec_star = np.zeros(N_star)

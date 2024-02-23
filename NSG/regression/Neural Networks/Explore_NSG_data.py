@@ -29,6 +29,11 @@ y_raw = dpm.adjust_time_lag(y_raw_df['raw_furnace_faults'].values,
                             shift=0,
                             to_remove=max_lag)
 
+# Check if the standardisation of y-raw is appropriate.
+# Useful to see what data we use to train the DP-GP
+scaler_raw = ss().fit(np.vstack(y_raw))
+y_raw_stand = scaler_raw.transform(np.vstack(y_raw))
+
 # Extract corresponding time stamps. Note this essentially just
 # removes the first max_lag points from the date_time array.
 date_time = dpm.adjust_time_lag(y_df['Time stamp'].values,
@@ -36,17 +41,6 @@ date_time = dpm.adjust_time_lag(y_df['Time stamp'].values,
                                 to_remove=max_lag)
 
 print('N: ', np.shape(y_raw))
-
-
-"""
-Explore data
-"""
-
-# fig = plt.figure()
-# fig.autofmt_xdate()
-# plt.plot(y_raw, c='black', label='Raw')
-# # plt.plot(y0, c='black', label='Conditioned')
-# plt.title('NSG data')
 
 """----------------------------------------------------------------------------
 PCA Analysis
@@ -130,12 +124,18 @@ print('\n Test data that shows to be within a training region identified')
 print(f"from {date_time[N_train+1000]} to {date_time[N_train+1500]}")
 
 similar = range(N_train+1000,N_train+1500)
+
+"""
+-------------------------------------------------------------------------------
+REGRESSION PLOTS
+-------------------------------------------------------------------------------
+"""
 fig = plt.figure()
 fig.autofmt_xdate()
 plt.plot(date_time, y_raw, linewidth = 2.5, c='grey', label='Raw')
-plt.plot(date_time, y, linewidth = 2.5, c='red', label='Standardised')
+plt.plot(date_time, y_raw_stand, linewidth = 2.5, c='purple', label='Raw Standard(SS)')
+plt.plot(date_time, y, linewidth = 2.5, c='red', label='Standardised(SS)')
 plt.plot(date_time, y0, linewidth = 2.5, c='blue', label='Nonstandardised')
-# plt.plot(y_df['Time stamp'].values, y_df['furnace_faults'].values, '--', linewidth = 2.5, c='lightgreen', label='y-df')
 plt.fill_between(date_time[similar], 50, color='pink', label='test data similar to training')
 plt.title('NSG Fault Density Data')
 plt.legend()

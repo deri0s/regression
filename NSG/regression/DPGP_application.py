@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 from sklearn.gaussian_process.kernels import RBF, WhiteKernel
 from sklearn.preprocessing import StandardScaler as ss
 from sklearn.preprocessing import MinMaxScaler
-from BayesianNonparametrics.DDPGP import DistributedDPGP as DDPGP
+from BayesianNonparametrics.DPGP import DirichletProcessGaussianProcess as DPGP
 from NSG import data_processing_methods as dpm
 from sklearn.decomposition import PCA
 
@@ -78,6 +78,7 @@ del X_df, y_df, dpm
 
 # Length scales
 ls = [0.0612, 3.72, 200, 200, 200, 200, 4.35, 0.691, 200, 200]
+# ls = [0.0612, 3.72, 200, 200, 200, 200, 4.35, 0.691, 200, 200]
 # ls = [7, 64, 7, 7.60, 7, 7, 7, 123, 76, 78]
 
 # Kernels
@@ -86,43 +87,19 @@ wn = WhiteKernel(noise_level=0.61**2, noise_level_bounds=(1e-5, 1))
 
 kernel = se + wn
 
-N_gps = 2
-dpgp = DDPGP(X_train, y_train, N_GPs=N_gps, init_K=7, kernel=kernel)
+dpgp = DPGP(X_train, y_train, init_K=7, kernel=kernel, plot_conv=True, plot_sol=True)
 dpgp.train()
 
 # predictions
-mu_dpgp, std_dpgp, betas = dpgp.predict(X_test)
+mu_dpgp, std_dpgp = dpgp.predict(X_test)
 
 # The estimated GP hyperparameters
-print('\nEstimated hyper DRGP: ', dpgp.rgps[0].kernel_)
+print('\nEstimated hyper DRGP: ', dpgp.kernel_)
 
 # Unormalise predictions
 if stand_label:
      mu = scaler.inverse_transform(mu_dpgp)
      std= scaler.inverse_transform(std_dpgp)
-
-#-----------------------------------------------------------------------------
-# Plot beta
-#-----------------------------------------------------------------------------
-c = ['red', 'orange', 'blue', 'black', 'green', 'cyan', 'darkred', 'pink',
-     'gray', 'magenta','lightgreen', 'darkblue', 'yellow']
-
-step = int(len(X_train)/N_gps)
-fig, ax = plt.subplots()
-fig.autofmt_xdate()
-for k in range(N_gps):
-    ax.plot(date_time, betas[:,k], color=c[k], linewidth=2,
-            label='Beta: '+str(k))
-    print('step: ', int(k*step))
-    plt.axvline(date_time[int(k*step)], linestyle='--', linewidth=2,
-                color='black')
-
-plt.axvline(date_time[N_train], linestyle='--', linewidth=3,
-            color='limegreen', label='<- train \n-> test')
-ax.set_title('Que?')
-ax.set_xlabel('Date-time')
-ax.set_ylabel('Predictive contribution')
-plt.legend(loc=0, prop={"size":18}, facecolor="white", framealpha=1.0)
 
 #-----------------------------------------------------------------------------
 # REGRESSION PLOT
@@ -134,20 +111,15 @@ fig, ax = plt.subplots()
 plt.rcdefaults()
 plt.rc('xtick', labelsize=14)
 plt.rc('ytick', labelsize=14)
-print('date-time: ', np.shape(date_time), ' N: ', N)
 fig.autofmt_xdate()
+
 ax.fill_between(date_time,
                 mu[:,0] + 3*std[:,0], mu[:,0] - 3*std[:,0],
                 alpha=0.5, color='pink',
-                label='Confidence \nBounds (DRGPs)')
+                label='Confidence \nBounds (DPGP)')
 ax.plot(date_time, y_raw[0:N], color='grey', label='Raw')
-plt.legend()
-ax.plot(date_time, mu, color="red", linewidth = 2.5, label="DRGPs")
-
-# Plot the limits of each expert
-for s in range(N_gps):
-    plt.axvline(date_time[int(s*step)], linestyle='--', linewidth=2,
-                color='black')
+ax.plot(date_time, y_raw[0:N], color='blue', label='Filtered')
+ax.plot(date_time, mu, color="red", linewidth = 2.5, label="DPGP")
 plt.axvline(date_time[N_train], linestyle='--', linewidth=3,
             color='black')
 ax.set_xlabel(" Date-time", fontsize=14)
@@ -170,10 +142,10 @@ Xt_test = pca.transform(X_test)
 # Plot at each 1000 points
 fig, ax = plt.subplots()
 ax.plot(Xt[:, 0], Xt[:, 1], 'o', markersize=0.9, c='black',
-        label='Available training data', alpha=0.6)
-ax.plot(Xt_train[:, 0], Xt_train[:, 1], 'o', markersize=0.9, c='orange',
+        label='Available training data', alpha=0.9)
+ax.plot(Xt_train[:, 0], Xt_train[:, 1], 'o', markersize=5.9, c='orange',
         label='Used Training data', alpha=0.6)
-ax.plot(Xt_test[:,0], Xt_test[:,1], '*', markersize=0.5,
+ax.plot(Xt_test[:,0], Xt_test[:,1], '*', markersize=5.5,
         c='pink', label='test data', alpha=0.6)
 ax.set_xlim(np.min(Xt[:, 0]), np.max(np.max(Xt[:, 0])))
 ax.set_ylim(np.min(Xt[:, 0]), np.max(np.max(Xt[:, 1])))
