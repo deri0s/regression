@@ -113,8 +113,8 @@ class DistributedDPGP(GPR):
                 # Inner loop: Move only on X_star_split
                 for k in range(N_local):
                     mu, sigma = self.rgps[i].predict(X_star_split[k])
-                    full_mean_exp.extend(mu[:, 0])
-                    full_std_exp.extend(sigma[:, 0])
+                    full_mean_exp.extend(mu)
+                    full_std_exp.extend(sigma)
                     
                 mu_all[:, i] = np.asarray(full_mean_exp)
                 sigma_all[:, i] = np.asarray(full_std_exp)
@@ -125,8 +125,8 @@ class DistributedDPGP(GPR):
             step = int(len(X_star)/self.N_GPs)
             for i in range(self.N_GPs):
                 mu, sigma = self.rgps[i].predict(X_star)
-                mu_all[:, i] = mu[:, 0]
-                sigma_all[:, i] = sigma[:, 0]
+                mu_all[:, i] = mu
+                sigma_all[:, i] = sigma
                 
                 # Plot the predictions of each expert
                 ax.plot(mu, color=self.c[i], label='RGP('+str(i)+')')
@@ -167,4 +167,4 @@ class DistributedDPGP(GPR):
             mu_star += betas[:, i] * sigma_all[:, i]**-2 * mu_all[:, i]
         mu_star *= var_star
 
-        return np.vstack(mu_star), np.vstack(std_star), np.vstack(betas)
+        return mu_star, std_star, np.vstack(betas)

@@ -69,7 +69,7 @@ date_time = date_time[0:N]
 """
 Neural Network Training
 """
-from keras.layers import Dense, Dropout
+from keras.layers import Dense, Dropout, BatchNormalization
 from sklearn.metrics import mean_absolute_error as mae
 
 # get best configuration from the single layer analysis
@@ -77,16 +77,27 @@ path = os.path.realpath('NSG/regression/Neural Networks')
 units = [1024, 256, 128, 64, 32, 8, 2]
 
 N_layers = 3
-N_units = units[3]
+N_units = units[2]
 architecture = '\\'+str(N_layers)+'HL_'+str(N_units)+'_units_'
 act = 'relu'
 model = keras.models.Sequential()
 model.add(Dense(N_units, name='hidden1', activation=act,
                 kernel_initializer=tf.keras.initializers.HeNormal()))
+model.add(BatchNormalization(synchronized=True))
 model.add(Dropout(0.2))
-model.add(Dense(units[4], name='hidden2', activation=act))
+
+model.add(Dense(units[2], name='hidden2', activation=act))
+model.add(BatchNormalization(synchronized=True))
 model.add(Dropout(0.2))
-model.add(Dense(units[5], name='hidden3', activation=act))
+
+model.add(Dense(units[3], name='hidden3', activation=act))
+model.add(BatchNormalization(synchronized=True))
+model.add(Dropout(0.2))
+
+model.add(Dense(units[1], name='hidden4', activation=act))
+model.add(BatchNormalization(synchronized=True))
+model.add(Dropout(0.2))
+
 model.add(Dense(1, name= 'output', activation='linear'))
 
 # Compilation
@@ -96,8 +107,8 @@ model.compile(optimizer=keras.optimizers.AdamW(learning_rate=lr),
 
 # Model hyperparameters
 # B = [11036, 5518, 2759, 1379, 690, 345, 172, 64, 32]
-B = [32]
-epoch = 3000
+B = [5528]
+epoch = 1500
 val_split = 0.15
 
 # Patient early stopping
@@ -113,7 +124,8 @@ for i in range(len(B)):
                         batch_size=int(B[i]), epochs=epoch,
                         validation_split=val_split, verbose=0, callbacks=[es])
     
-    model.save(name_model+'_'+str(act)+'_B'+str(B[i]))
+    # model.save(name_model+'_'+str(act)+'_B'+str(B[i]))
+    model.save(name_model+'diego')
 
     # Plot accuracy of the model after each epoch.
     plt.figure()
@@ -152,7 +164,7 @@ for i in range(len(B)):
 
 # # plt.show()
 # df.to_csv(name_model+'_'+str(act)+'_B'+str(B[0])+'.csv', index=False)
-print('sali del loop y guarde')
+
 """
 Plots
 """

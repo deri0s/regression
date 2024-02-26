@@ -38,37 +38,24 @@ date_time = dpm.adjust_time_lag(y_df['Time stamp'].values,
                                 shift=0,
                                 to_remove=max_lag)
 
+# Scale data using MinMaxScaler. Do not use StandardScaler 
+scaler = MinMaxScaler(feature_range=(0,1))
+
+y_s = scaler.fit_transform(np.vstack(y_raw))
+
 # Train and test data
 N, D = np.shape(X)
-N_train = 550
-N = 600
-stand = 1
+start_train = 0
+end_train = 500
+end_test = 600
+N_train = abs(end_train - start_train)
 
-# Scale data using MinMaxScaler. Do not use StandardScaler since the NN training stage
-# struggles to find a solution.
-if scaler_type == 'minmax':
-    scaler = MinMaxScaler(feature_range=(0,1))
-elif scaler_type == 'ss':
-    scaler = ss()
-else:
-    assert False, f"scaler {stand} not a valid"
+X_train, y_train = X[start_train:end_train], y_s[start_train:end_train]
+X_test, y_test = X[start_train:end_test], y_raw[start_train:end_test]
 
-def get_train_test(X: np.array, y_orig: np.array, stand: bool, scaler=None):
-    if stand:
-        y_s = scaler.fit_transform(np.vstack(y_orig))
-        X_train, y_train = X[0:N_train], y_s[0:N_train]
-        X_test, y_test = X[0:N], y_orig[0:N]
-        label = 'Standardised'
-    else:
-        X_train, y_train = X[0:N_train], y_orig[0:N_train]
-        X_test, y_test = X[0:N], y_orig[0:N]
-        label = 'Nonstandardised'
-
-    return X_train, y_train, X_test, y_test, label
-
-X_train, y_train, X_test, y_test, stand_label = get_train_test(X, y_raw, stand, scaler=scaler)
-date_time = date_time[0:N]
-y_rect = y0[0:N]
+date_time = date_time[start_train:end_test]
+y_raw = y_raw[start_train:end_test]
+y_rect = y0[start_train:end_test]
 
 """
 DPGP regression
@@ -77,9 +64,9 @@ DPGP regression
 del X_df, y_df, dpm
 
 # Length scales
-ls = [0.0612, 3.72, 200, 200, 200, 200, 4.35, 0.691, 200, 200]
 # ls = [0.0612, 3.72, 200, 200, 200, 200, 4.35, 0.691, 200, 200]
-# ls = [7, 64, 7, 7.60, 7, 7, 7, 123, 76, 78]
+# ls = [0.0612, 3.72, 200, 200, 200, 200, 4.35, 0.691, 200, 200]
+ls = [7, 64, 7, 7.60, 7, 7, 7, 123, 76, 78]
 
 # Kernels
 se = 1**2 * RBF(length_scale=ls, length_scale_bounds=(0.05, 200))
@@ -87,7 +74,7 @@ wn = WhiteKernel(noise_level=0.61**2, noise_level_bounds=(1e-5, 1))
 
 kernel = se + wn
 
-dpgp = DPGP(X_train, y_train, init_K=7, kernel=kernel, plot_conv=True, plot_sol=True)
+dpgp = DPGP(X_train, y_train, init_K=7, kernel=kernel)
 dpgp.train()
 
 # predictions
@@ -97,9 +84,8 @@ mu_dpgp, std_dpgp = dpgp.predict(X_test)
 print('\nEstimated hyper DRGP: ', dpgp.kernel_)
 
 # Unormalise predictions
-if stand_label:
-     mu = scaler.inverse_transform(mu_dpgp)
-     std= scaler.inverse_transform(std_dpgp)
+mu = scaler.inverse_transform(np.vstack(mu_dpgp))
+std= scaler.inverse_transform(np.vstack(std_dpgp))
 
 #-----------------------------------------------------------------------------
 # REGRESSION PLOT
@@ -117,8 +103,8 @@ ax.fill_between(date_time,
                 mu[:,0] + 3*std[:,0], mu[:,0] - 3*std[:,0],
                 alpha=0.5, color='pink',
                 label='Confidence \nBounds (DPGP)')
-ax.plot(date_time, y_raw[0:N], color='grey', label='Raw')
-ax.plot(date_time, y_raw[0:N], color='blue', label='Filtered')
+ax.plot(date_time, y_raw, color='grey', label='Raw')
+ax.plot(date_time, y_rect, color='blue', label='Filtered')
 ax.plot(date_time, mu, color="red", linewidth = 2.5, label="DPGP")
 plt.axvline(date_time[N_train], linestyle='--', linewidth=3,
             color='black')
@@ -141,12 +127,12 @@ Xt_test = pca.transform(X_test)
     
 # Plot at each 1000 points
 fig, ax = plt.subplots()
-ax.plot(Xt[:, 0], Xt[:, 1], 'o', markersize=0.9, c='black',
+ax.plot(Xt[:, 0], Xt[:, 1], 'o', markersize=0.9, c='grey',
         label='Available training data', alpha=0.9)
-ax.plot(Xt_train[:, 0], Xt_train[:, 1], 'o', markersize=5.9, c='orange',
+ax.plot(Xt_train[:, 0], Xt_train[:, 1], 'o', markersize=8.9, c='orange',
         label='Used Training data', alpha=0.6)
 ax.plot(Xt_test[:,0], Xt_test[:,1], '*', markersize=5.5,
-        c='pink', label='test data', alpha=0.6)
+        c='purple', label='test data', alpha=0.6)
 ax.set_xlim(np.min(Xt[:, 0]), np.max(np.max(Xt[:, 0])))
 ax.set_ylim(np.min(Xt[:, 0]), np.max(np.max(Xt[:, 1])))
 plt.show()

@@ -208,7 +208,7 @@ class DirichletProcessGaussianProcess(GPR):
     
         return indices, X0, Y0, resp[0], pies, stds, K_opt
                                                     
-    def predict(self, X_star, report_normalised=False):
+    def predict(self, X_star):
         """
             The OMGP predictive distribution
             
@@ -259,7 +259,7 @@ class DirichletProcessGaussianProcess(GPR):
             y_star_mean = self.Y_std * y_star_mean + self.Y_mu
             y_star_std = self.Y_std * y_star_std
                 
-        return y_star_mean, np.vstack(y_star_std)
+        return y_star_mean[:,0], y_star_std
 
     def train(self, tol=12):
         """

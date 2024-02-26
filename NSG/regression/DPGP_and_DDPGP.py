@@ -151,12 +151,12 @@ Xt_test = pca.transform(X_test)
     
 # Plot at each 1000 points
 fig, ax = plt.subplots()
-ax.plot(Xt[:, 0], Xt[:, 1], 'o', markersize=0.9, c='black',
+ax.plot(Xt[:, 0], Xt[:, 1], 'o', markersize=0.9, c='grey',
         label='Available training data', alpha=0.9)
-ax.plot(Xt_train[:, 0], Xt_train[:, 1], 'o', markersize=5.9, c='orange',
+ax.plot(Xt_train[:, 0], Xt_train[:, 1], 'o', markersize=8.9, c='orange',
         label='Used Training data', alpha=0.6)
 ax.plot(Xt_test[:,0], Xt_test[:,1], '*', markersize=5.5,
-        c='pink', label='test data', alpha=0.6)
+        c='purple', label='test data', alpha=0.6)
 ax.set_xlim(np.min(Xt[:, 0]), np.max(np.max(Xt[:, 0])))
 ax.set_ylim(np.min(Xt[:, 0]), np.max(np.max(Xt[:, 1])))
 plt.show()
