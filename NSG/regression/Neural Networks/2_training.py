@@ -42,10 +42,11 @@ date_time = dpm.adjust_time_lag(y_df['Time stamp'].values,
 # Train and test data
 N, D = np.shape(X)
 N_train = N
-stand = 1
+stand = 0
 
 # Scale data using MinMaxScaler. Do not use StandardScaler since the NN training stage
 # struggles to find a solution.
+from sklearn.preprocessing import StandardScaler as ss
 scaler = MinMaxScaler(feature_range=(0,1))
 
 def get_train_test(X: np.array, y_orig: np.array, stand: bool):
@@ -77,7 +78,7 @@ path = os.path.realpath('NSG/regression/Neural Networks')
 units = [1024, 256, 128, 64, 32, 8, 2]
 
 N_layers = 3
-N_units = units[2]
+N_units = 128
 architecture = '\\'+str(N_layers)+'HL_'+str(N_units)+'_units_'
 act = 'relu'
 model = keras.models.Sequential()
@@ -86,15 +87,11 @@ model.add(Dense(N_units, name='hidden1', activation=act,
 model.add(BatchNormalization(synchronized=True))
 model.add(Dropout(0.2))
 
-model.add(Dense(units[2], name='hidden2', activation=act))
+model.add(Dense(64, name='hidden2', activation=act))
 model.add(BatchNormalization(synchronized=True))
 model.add(Dropout(0.2))
 
-model.add(Dense(units[3], name='hidden3', activation=act))
-model.add(BatchNormalization(synchronized=True))
-model.add(Dropout(0.2))
-
-model.add(Dense(units[1], name='hidden4', activation=act))
+model.add(Dense(32, name='hidden3', activation=act))
 model.add(BatchNormalization(synchronized=True))
 model.add(Dropout(0.2))
 
@@ -107,7 +104,7 @@ model.compile(optimizer=keras.optimizers.AdamW(learning_rate=lr),
 
 # Model hyperparameters
 # B = [11036, 5518, 2759, 1379, 690, 345, 172, 64, 32]
-B = [5528]
+B = [64]
 epoch = 1500
 val_split = 0.15
 
@@ -125,7 +122,7 @@ for i in range(len(B)):
                         validation_split=val_split, verbose=0, callbacks=[es])
     
     # model.save(name_model+'_'+str(act)+'_B'+str(B[i]))
-    model.save(name_model+'diego')
+    model.save(name_model+'_')
 
     # Plot accuracy of the model after each epoch.
     plt.figure()
@@ -142,7 +139,7 @@ for i in range(len(B)):
     # Predictions on test data
     yNN = model.predict(X_test, verbose=0)
 
-    if stand_label:
+    if stand:
         yNN = scaler.inverse_transform(yNN)
 
     yNN_test = yNN[-int(N_train*val_split):]

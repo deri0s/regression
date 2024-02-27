@@ -261,13 +261,20 @@ class DirichletProcessGaussianProcess(GPR):
                 
         return y_star_mean[:,0], y_star_std
 
-    def train(self, tol=12):
+    def train(self, tol=12, pseudo_sparse=False):
         """
             The present algorithm first performs clustering with a 
             Dirichlet Process mixture model (DP method).
             Then, it uses the inferred noise structure to train a standard
             GP. The OMGP predictive distribution is used to incorporate the
             responsibilities in realise new estimates of the latent function.
+
+            Inputs
+            ------
+
+            - pseudo_sparse: Takes half of the data estimated to be correupted
+                             with the latent process to train the GPR model
+                             (to do: implement sparse GP using GPJax)
             
             Estimates
             ---------
@@ -312,7 +319,10 @@ class DirichletProcessGaussianProcess(GPR):
             
             # The regression step
             self.kernel.theta = self.hyperparameters
-            super().fit(X0, Y0)
+            if pseudo_sparse == True:
+                super().fit(X0[0:self.N:2, :], Y0[0:self.N:2, :])
+            else:
+                super().fit(X0, Y0)
             
             # Update the GPR initial hyperparameters
             self.hyperparameters = self.kernel_.theta

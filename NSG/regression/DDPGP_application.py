@@ -4,7 +4,6 @@ import numpy as np
 from matplotlib import pyplot as plt
 from sklearn.gaussian_process.kernels import RBF, WhiteKernel
 from sklearn.preprocessing import StandardScaler as ss
-from sklearn.preprocessing import MinMaxScaler
 from BayesianNonparametrics.DDPGP import DistributedDPGP as DDPGP
 from NSG import data_processing_methods as dpm
 from sklearn.decomposition import PCA
@@ -14,8 +13,6 @@ NSG data
 """
 # NSG post processes data location
 file = paths.get_data_path('NSG_data.xlsx')
-stand = 1
-scaler_type = 'minmax'
 
 # Training df
 X_df = pd.read_excel(file, sheet_name='X_training_stand')
@@ -25,6 +22,11 @@ t_df = pd.read_excel(file, sheet_name='time')
 
 # Pre-Process training data
 X, y0, N0, D, max_lag, time_lags = dpm.align_arrays(X_df, y_df, t_df)
+
+# Replace zero values with interpolation
+zeros = y_raw_df.loc[y_raw_df['raw_furnace_faults'] < 1e-2]
+y_raw_df['raw_furnace_faults'][zeros.index] = None
+y_raw_df.interpolate(inplace=True)
 
 # Process raw targets
 # Just removes the first max_lag points from the date_time array.
@@ -38,15 +40,14 @@ date_time = dpm.adjust_time_lag(y_df['Time stamp'].values,
                                 shift=0,
                                 to_remove=max_lag)
 # Scale data using MinMaxScaler. Do not use StandardScaler 
-scaler = MinMaxScaler(feature_range=(0,1))
-
+scaler = ss()
 y_s = scaler.fit_transform(np.vstack(y_raw))
 
 # Train and test data
 N, D = np.shape(X)
 start_train = 0
-end_train = 5000
-end_test = 5600
+end_train = 2348
+end_test = 3000
 N_train = abs(end_train - start_train)
 
 X_train, y_train = X[start_train:end_train], y_s[start_train:end_train]
@@ -63,18 +64,18 @@ DPGP regression
 del X_df, y_df, dpm
 
 # Length scales
-ls = [0.0612, 3.72, 200, 200, 200, 200, 4.35, 0.691, 200, 200]
-# ls = [7, 64, 7, 7.60, 7, 7, 7, 123, 76, 78]
+# ls = [0.0612, 3.72, 200, 200, 200, 200, 4.35, 0.691, 200, 200]
+ls = [7, 64, 7, 7.60, 7, 7, 7, 123, 76, 78]
 
 # Kernels
-se = 1**2 * RBF(length_scale=ls, length_scale_bounds=(0.05, 200))
+se = 1**2 * RBF(length_scale=ls, length_scale_bounds=(0.1, 200))
 wn = WhiteKernel(noise_level=0.61**2, noise_level_bounds=(1e-5, 1))
 
 kernel = se + wn
 
-N_gps = 12
+N_gps = 2
 dpgp = DDPGP(X_train, y_train, N_GPs=N_gps, init_K=7, kernel=kernel)
-dpgp.train()
+dpgp.train(pseudo_sparse=True)
 
 # predictions
 mu_dpgp, std_dpgp, betas = dpgp.predict(X_test)
@@ -124,7 +125,6 @@ ax.fill_between(date_time,
                 alpha=0.5, color='pink',
                 label='Confidence \nBounds (DRGPs)')
 ax.plot(date_time, y_raw[0:N], color='grey', label='Raw')
-plt.legend()
 ax.plot(date_time, mu, color="red", linewidth = 2.5, label="DRGPs")
 
 # Plot the limits of each expert

@@ -15,7 +15,7 @@ NSG data
 # NSG post processes data location
 file = paths.get_data_path('NSG_data.xlsx')
 stand = 1
-scaler_type = 'minmax'
+scaler_type = 'ss'
 
 # Training df
 X_df = pd.read_excel(file, sheet_name='X_training_stand')
@@ -25,6 +25,11 @@ t_df = pd.read_excel(file, sheet_name='time')
 
 # Pre-Process training data
 X, y0, N0, D, max_lag, time_lags = dpm.align_arrays(X_df, y_df, t_df)
+
+# Replace zero values with interpolation
+zeros = y_raw_df.loc[y_raw_df['raw_furnace_faults'] < 1e-2]
+y_raw_df['raw_furnace_faults'][zeros.index] = None
+y_raw_df.interpolate(inplace=True)
 
 # Process raw targets
 # Just removes the first max_lag points from the date_time array.
@@ -38,16 +43,21 @@ date_time = dpm.adjust_time_lag(y_df['Time stamp'].values,
                                 shift=0,
                                 to_remove=max_lag)
 
-# Scale data using MinMaxScaler. Do not use StandardScaler 
-scaler = MinMaxScaler(feature_range=(0,1))
+# Scale or normalise the targets
+if scaler_type == 'ss':
+        scaler = MinMaxScaler(feature_range=(0,1))
+elif scaler_type == 'minmax':
+        scaler = ss()
+else:
+        assert False, 'not a valid scaler'
 
 y_s = scaler.fit_transform(np.vstack(y_raw))
 
 # Train and test data
 N, D = np.shape(X)
 start_train = 0
-end_train = 500
-end_test = 600
+end_train = 1000
+end_test = 1500
 N_train = abs(end_train - start_train)
 
 X_train, y_train = X[start_train:end_train], y_s[start_train:end_train]
@@ -69,8 +79,9 @@ del X_df, y_df, dpm
 ls = [7, 64, 7, 7.60, 7, 7, 7, 123, 76, 78]
 
 # Kernels
-se = 1**2 * RBF(length_scale=ls, length_scale_bounds=(0.05, 200))
-wn = WhiteKernel(noise_level=0.61**2, noise_level_bounds=(1e-5, 1))
+se = 1**2 * RBF(length_scale=ls, length_scale_bounds=(0.1, 200))
+# se = 1**2 * RBF(length_scale=ls, length_scale_bounds=(0.05, 200))
+wn = WhiteKernel(noise_level=0.61**2, noise_level_bounds=(1e-4, 1))
 
 kernel = se + wn
 
@@ -115,24 +126,24 @@ plt.legend(loc=0, prop={"size":18}, facecolor="white", framealpha=1.0)
 # ----------------------------------------------------------------------------
 # PCA and PLOTS
 # ----------------------------------------------------------------------------
-pca = PCA(n_components=2)
-pca.fit(X)
-Xt = pca.transform(X)
+# pca = PCA(n_components=2)
+# pca.fit(X)
+# Xt = pca.transform(X)
 
-# PCA on training data
-Xt_train = pca.transform(X_train)
+# # PCA on training data
+# Xt_train = pca.transform(X_train)
 
-# PCA on test data
-Xt_test = pca.transform(X_test)
+# # PCA on test data
+# Xt_test = pca.transform(X_test)
     
-# Plot at each 1000 points
-fig, ax = plt.subplots()
-ax.plot(Xt[:, 0], Xt[:, 1], 'o', markersize=0.9, c='grey',
-        label='Available training data', alpha=0.9)
-ax.plot(Xt_train[:, 0], Xt_train[:, 1], 'o', markersize=8.9, c='orange',
-        label='Used Training data', alpha=0.6)
-ax.plot(Xt_test[:,0], Xt_test[:,1], '*', markersize=5.5,
-        c='purple', label='test data', alpha=0.6)
-ax.set_xlim(np.min(Xt[:, 0]), np.max(np.max(Xt[:, 0])))
-ax.set_ylim(np.min(Xt[:, 0]), np.max(np.max(Xt[:, 1])))
+# # Plot at each 1000 points
+# fig, ax = plt.subplots()
+# ax.plot(Xt[:, 0], Xt[:, 1], 'o', markersize=0.9, c='grey',
+#         label='Available training data', alpha=0.9)
+# ax.plot(Xt_train[:, 0], Xt_train[:, 1], 'o', markersize=8.9, c='orange',
+#         label='Used Training data', alpha=0.6)
+# ax.plot(Xt_test[:,0], Xt_test[:,1], '*', markersize=5.5,
+#         c='purple', label='test data', alpha=0.6)
+# ax.set_xlim(np.min(Xt[:, 0]), np.max(np.max(Xt[:, 0])))
+# ax.set_ylim(np.min(Xt[:, 0]), np.max(np.max(Xt[:, 1])))
 plt.show()

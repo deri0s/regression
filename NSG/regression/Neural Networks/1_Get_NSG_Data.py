@@ -69,6 +69,8 @@ assert set(X_df.columns) == set(to_retain)
 # Standardise input data
 from sklearn.preprocessing import StandardScaler
 
+# Using StandardScaler produced the same results obtained with the dpm
+# standardised method
 X_df_stand = StandardScaler().fit_transform(X_df)
 X_df = pd.DataFrame(X_df_stand, columns=X_df.columns)
 

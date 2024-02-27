@@ -2,6 +2,7 @@ import paths
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler as ss
 from sklearn.preprocessing import MinMaxScaler
 from NSG import data_processing_methods as dpm
 
@@ -19,7 +20,10 @@ t_df = pd.read_excel(file, sheet_name='time')
 
 # Pre-Process training data
 X, y0, N0, D, max_lag, time_lags = dpm.align_arrays(X_df, y_df, t_df)
-scaler = MinMaxScaler(feature_range=(0,1))
+
+""" Specify scaler here if the data was standardised """
+# scaler = MinMaxScaler(feature_range=(0,1))
+scaler = ss()
 y = scaler.fit_transform(np.vstack(y0))
 
 # Process raw targets
@@ -54,9 +58,10 @@ from sklearn.metrics import mean_absolute_error as mae
 
 # Load trained model
 path_file = os.getcwd()+'\\NSG\\regression\\Neural Networks'
-name = '\\3HL_64_units_Standardised_relu_B5518_best_testing'
+# name = '\\3HL_64_units_Standardised_relu_B5518_best_testing'
+name = '\\4HL_128_units_B64_Nonstandardised'
 model1 = keras.models.load_model(path_file+name)
-model2 = keras.models.load_model(path_file+'\\2HL_64_units_Nonstandardised_relu_B32')
+model2 = keras.models.load_model(path_file+'\\3HL_128_units_Nonstandardised_')
 
 # Predictions on test data
 yNN1 = model1.predict(X_test)

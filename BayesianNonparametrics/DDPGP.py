@@ -44,7 +44,7 @@ class DistributedDPGP(GPR):
                   'lightgreen', 'darkblue', 'yellow']
         
         
-    def train(self, tol=12):
+    def train(self, tol=12, pseudo_sparse=False):
         """
         Description
         -----------
@@ -58,7 +58,7 @@ class DistributedDPGP(GPR):
                 rgp = DPGP(self.X_split[m], self.Y_split[m],
                            init_K=self.init_K, kernel=self.kernel[m],
                            normalise_y=self.normalise_y)
-                rgp.train(tol)
+                rgp.train(tol, pseudo_sparse=pseudo_sparse)
                 
                 # Print the optimal hyperparameters
                 print('\n Expert ', m, " trained")
@@ -68,7 +68,7 @@ class DistributedDPGP(GPR):
                 # All the RGP experts share the same hyperparameters
                 rgp = DPGP(self.X_split[m], self.Y_split[m],
                            init_K=self.init_K, kernel=self.kernel)
-                rgp.train(tol)
+                rgp.train(tol, pseudo_sparse=pseudo_sparse)
                 # Print the optimal hyperparameters
                 print('\n Expert ', m, " trained")
                 print('Hyper exper: -> ', rgp.kernel_, '\n')
