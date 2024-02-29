@@ -1,7 +1,9 @@
+from pathlib import Path
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.gaussian_process import GaussianProcessRegressor as GPR
 from BayesianNonparametrics.DPGP import DirichletProcessGaussianProcess as DPGP
+import yaml
 import matplotlib.pyplot as plt
 
 """
@@ -12,7 +14,7 @@ Diego Echeverria
 
 class DistributedDPGP(GPR):
 
-    def __init__(self, X, Y, N_GPs, init_K, kernel, normalise_y=False):
+    def __init__(self, X, Y, N_GPs, init_K, kernel, normalise_y=False, plot_expert_pred=False):
         """
             Initialise objects, variables and parameters
         """
@@ -37,13 +39,38 @@ class DistributedDPGP(GPR):
         # Divide up data evenly between GPs
         self.X_split = np.array_split(self.X, N_GPs)
         self.Y_split = np.array_split(self.Y, N_GPs)
+
+        # Array of colors to use in the plots (max 200 colors)
+        FILE = Path(__file__).resolve()
+        colors_path_name = FILE.parents[0] / 'colors.yml'
+
+        with open(colors_path_name, 'r') as f:
+            colors_dict = yaml.safe_load(f)
+            self.c = colors_dict['color']
         
-        # Array of colors to use in the plots
-        self.c = ['red', 'orange', 'blue', 'black', 'green',
-                  'cyan', 'darkred', 'pink', 'gray', 'magenta',
-                  'lightgreen', 'darkblue', 'yellow']
-        
-        
+        # Plot option only available for N-GPs <= 200
+        self.plot_expert_pred = plot_expert_pred
+        if self.plot_expert_pred:
+            if self.N_GPs > 200:
+                assert False, 'Experts predictions can only be plotted for N_GP <= 200'
+
+    def plot_expert(self, X_test, mu_all):
+        # Plot the predictions of each expert
+        plt.figure()
+        plt.title('Expert predictions at each region')
+        advance = 0
+        step = int(len(X_test)/self.N_GPs)
+        # draw a line dividing training and test data
+        # plt.axvline(self.N + step, linestyle='--', linewidth=3, color='red',
+        #             label='-> test data')
+        for i in range(self.N_GPs):
+            plt.plot(mu_all[:, i], color=self.c[i], label='DPGP('+str(i)+')')
+            plt.axvline(int(advance), linestyle='--', linewidth=3,
+                        color='black')
+            advance += step
+        plt.legend()
+
+
     def train(self, tol=12, pseudo_sparse=False):
         """
         Description
@@ -119,25 +146,10 @@ class DistributedDPGP(GPR):
                 mu_all[:, i] = np.asarray(full_mean_exp)
                 sigma_all[:, i] = np.asarray(full_std_exp)
         else:
-            fig, ax = plt.subplots()
-            x_star_plot = np.linspace(0, X_star[-1], len(X_star))
-            advance = 0
-            step = int(len(X_star)/self.N_GPs)
             for i in range(self.N_GPs):
                 mu, sigma = self.rgps[i].predict(X_star)
                 mu_all[:, i] = mu
                 sigma_all[:, i] = sigma
-                
-                # Plot the predictions of each expert
-                ax.plot(mu, color=self.c[i], label='RGP('+str(i)+')')
-                plt.axvline(int(advance), linestyle='--', linewidth=3,
-                color='black')
-                advance += step
-            
-            # draw a line dividing training and test data
-            plt.axvline(self.N, linestyle='--', linewidth=3, color='black')
-            plt.title('Expert predictions at each region')
-            plt.legend()
 
         # Calculate the normalised predictive power of the predictions made
         # by each GP. Note that, we are assuming that k(x_star, x_star)=1
@@ -166,5 +178,9 @@ class DistributedDPGP(GPR):
         for i in range(self.N_GPs):
             mu_star += betas[:, i] * sigma_all[:, i]**-2 * mu_all[:, i]
         mu_star *= var_star
+
+        # plot if specified
+        if self.plot_expert_pred:
+            self.plot_expert(X_star, mu_all)
 
         return mu_star, std_star, np.vstack(betas)

@@ -51,7 +51,7 @@ kernels.append(se + wn)
 # The DPGP model
 rgp = DPGP(X, Y, init_K=7, kernel=kernel, normalise_y=True)
 rgp.train()
-muGP, stdGP = rgp.predict(xNew, N)
+muGP, stdGP = rgp.predict(xNew)
 print('DPGP init stds: ', rgp.init_pies)
 print('DPGP init pies: ', rgp.init_sigmas)
 
@@ -63,7 +63,8 @@ N_GPs = 2
 # for k in range(N_GPs):
 #     kernels.append(kernel)
 
-dgp = DDPGP(X, Y, N_GPs, 7, kernels, normalise_y=True)
+dgp = DDPGP(X, Y, N_GPs, 7, kernels, normalise_y=True,
+            plot_expert_pred=True)
 dgp.train()
 muMix, stdMix, betas = dgp.predict(xNew)
 
@@ -72,12 +73,12 @@ F = 150 * xNew * np.sin(xNew)
 print("Mean Squared Error (DPGP)   : ", mean_squared_error(muGP, F))
 print("Mean Squared Error (Distributed DPGP)  : ",
       mean_squared_error(muMix, F))
+print('mu: ', np.shape(muMix))
+print('std: ', np.shape(stdMix))
 
-##############################################################################
+#-----------------------------------------------------------------------------
 # Plot beta
-##############################################################################
-c = ['red', 'orange', 'blue', 'black', 'green', 'cyan', 'darkred', 'pink',
-     'gray', 'magenta','lightgreen', 'darkblue', 'yellow']
+#-----------------------------------------------------------------------------
 
 fig, ax = plt.subplots()
 fig.autofmt_xdate()
@@ -86,7 +87,7 @@ advance = 0
 for k in range(N_GPs):
     plt.axvline(xNew[int(advance)], linestyle='--', linewidth=3,
                 color='black')
-    ax.plot(xNew, betas[:,k], color=c[k], linewidth=2,
+    ax.plot(xNew, betas[:,k], color=dgp.c[k], linewidth=2,
             label='Beta: '+str(k))
     plt.legend()
     advance += step
@@ -103,7 +104,9 @@ print('Noise Stds: ', rgp.stds)
 print('Hyperparameters: ', rgp.hyperparameters)
 
 
-# Regression performance:
+#-----------------------------------------------------------------------------
+# REGRESSION PLOT
+#-----------------------------------------------------------------------------
 plt.figure()
 advance = 0
 for k in range(N_GPs):
@@ -126,26 +129,25 @@ plt.legend(prop={"size":20})
 # ----------------------------------------------------------------------------
 
 color_iter = ['green', 'orange', 'red']
-enumerate_real = [i for i in range(3)]
 enumerate_K = [i for i in range(rgp.K_opt)]
 
 plt.figure()
-plt.fill_between(xNew, muMix[:,0] + 3*stdMix[:,0],
-                 muMix[:,0] - 3*stdMix[:,0],
+plt.fill_between(xNew,
+                 muMix + 3*stdMix, muMix - 3*stdMix,
                  alpha=0.5,color='lightgreen',
-                 label='Confidence \nBounds (EM-GP)')
+                 label='Confidence \nBounds (DDPGP)')
 
-plt.fill_between(xNew, muGP[:,0] + 3*stdGP[:,0],
-                 muGP[:,0] - 3*stdGP[:,0],
+plt.fill_between(xNew,
+                 muGP + 3*stdGP, muGP - 3*stdGP,
                  alpha=0.5,color='green',
-                 label='Confidence \nBounds (EM-GP)')
+                 label='Confidence \nBounds (DPGP)')
 
 nl = ['Noise level 0', 'Noise level 1', 'Noise level 2']
 for i, (k, c) in enumerate(zip(enumerate_K, color_iter)):
     plt.plot(X[rgp.indices[k]], Y[rgp.indices[k]], 'o',color=c,
              markersize = 9, label=nl[k])
     
-plt.plot(xNew, muMix, linewidth=2.5, color='green', label='EM-GP')
+plt.plot(xNew, muMix, linewidth=2.5, color='green', label='DDPGP')
 plt.xlabel('x', fontsize=16)
 plt.ylabel('f(x)', fontsize=16)
 plt.legend(prop={"size":20})

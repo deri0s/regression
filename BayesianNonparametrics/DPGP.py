@@ -158,16 +158,9 @@ class DirichletProcessGaussianProcess(GPR):
                                        covariance_type='spherical',
                                        max_iter=70,
                                        weight_concentration_prior_type='dirichlet_process',
-                                       init_params="random")
-        
-        # gmm =m.BayesianGaussianMixture(n_components=T,
-        #                                mean_prior = np.zeros(self.N),
-        #                                mean_precision_prior=28,
-        #                                covariance_type='spherical',
-        #                                max_iter=70,
-        #                                weight_concentration_prior_type='dirichlet_process',
-        #                                init_params="random")
-        
+                                       init_params="random",
+                                       random_state=42)
+                
         # The data labels correspond to the position of the mix parameters
         labels = gmm.fit_predict(errors)
         

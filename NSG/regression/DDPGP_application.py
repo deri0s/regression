@@ -39,18 +39,15 @@ y_raw = dpm.adjust_time_lag(y_raw_df['raw_furnace_faults'].values,
 date_time = dpm.adjust_time_lag(y_df['Time stamp'].values,
                                 shift=0,
                                 to_remove=max_lag)
-# Scale data using MinMaxScaler. Do not use StandardScaler 
-scaler = ss()
-y_s = scaler.fit_transform(np.vstack(y_raw))
 
 # Train and test data
 N, D = np.shape(X)
 start_train = 0
-end_train = 2348
-end_test = 3000
+end_train = 600
+end_test = 600
 N_train = abs(end_train - start_train)
 
-X_train, y_train = X[start_train:end_train], y_s[start_train:end_train]
+X_train, y_train = X[start_train:end_train], y_raw[start_train:end_train]
 X_test, y_test = X[start_train:end_test], y_raw[start_train:end_test]
 
 date_time = date_time[start_train:end_test]
@@ -74,35 +71,27 @@ wn = WhiteKernel(noise_level=0.61**2, noise_level_bounds=(1e-5, 1))
 kernel = se + wn
 
 N_gps = 2
-dpgp = DDPGP(X_train, y_train, N_GPs=N_gps, init_K=7, kernel=kernel)
-dpgp.train(pseudo_sparse=True)
+dpgp = DDPGP(X_train, y_train, N_GPs=N_gps, init_K=7, kernel=kernel,
+             normalise_y=True, plot_expert_pred=True)
+dpgp.train(pseudo_sparse=False)
 
 # predictions
-mu_dpgp, std_dpgp, betas = dpgp.predict(X_test)
-
-# The estimated GP hyperparameters
-print('\nEstimated hyper DRGP: ', dpgp.rgps[0].kernel_)
-
-# Unormalise predictions
-mu = scaler.inverse_transform(np.vstack(mu_dpgp))
-std= scaler.inverse_transform(np.vstack(std_dpgp))
+mu, std, betas = dpgp.predict(X_test)
 
 #-----------------------------------------------------------------------------
 # Plot beta
 #-----------------------------------------------------------------------------
-c = ['red', 'orange', 'blue', 'black', 'green', 'cyan', 'darkred', 'pink',
-     'gray', 'magenta','lightgreen', 'darkblue', 'yellow']
 
 step = int(len(X_train)/N_gps)
 fig, ax = plt.subplots()
 fig.autofmt_xdate()
 for k in range(N_gps):
-    ax.plot(date_time, betas[:,k], color=c[k], linewidth=2,
+    ax.plot(date_time, betas[:,k], color=dpgp.c[k], linewidth=2,
             label='Beta: '+str(k))
     plt.axvline(date_time[int(k*step)], linestyle='--', linewidth=2,
                 color='black')
 
-plt.axvline(date_time[N_train], linestyle='--', linewidth=3,
+plt.axvline(date_time[N_train-1], linestyle='--', linewidth=3,
             color='limegreen', label='<- train \n-> test')
 ax.set_title('Predictive contribution of robust GP experts')
 ax.set_xlabel('Date-time')
@@ -121,7 +110,7 @@ plt.rc('xtick', labelsize=14)
 plt.rc('ytick', labelsize=14)
 fig.autofmt_xdate()
 ax.fill_between(date_time,
-                mu[:,0] + 3*std[:,0], mu[:,0] - 3*std[:,0],
+                mu + 3*std, mu - 3*std,
                 alpha=0.5, color='pink',
                 label='Confidence \nBounds (DRGPs)')
 ax.plot(date_time, y_raw[0:N], color='grey', label='Raw')
@@ -131,7 +120,7 @@ ax.plot(date_time, mu, color="red", linewidth = 2.5, label="DRGPs")
 for s in range(N_gps):
     plt.axvline(date_time[int(s*step)], linestyle='--', linewidth=2,
                 color='black')
-plt.axvline(date_time[N_train], linestyle='--', linewidth=3,
+plt.axvline(date_time[N_train-1], linestyle='--', linewidth=3,
             color='black')
 ax.set_xlabel(" Date-time", fontsize=14)
 ax.set_ylabel(" Fault density", fontsize=14)

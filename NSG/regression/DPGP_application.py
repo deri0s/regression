@@ -14,8 +14,6 @@ NSG data
 """
 # NSG post processes data location
 file = paths.get_data_path('NSG_data.xlsx')
-stand = 1
-scaler_type = 'ss'
 
 # Training df
 X_df = pd.read_excel(file, sheet_name='X_training_stand')
@@ -43,16 +41,6 @@ date_time = dpm.adjust_time_lag(y_df['Time stamp'].values,
                                 shift=0,
                                 to_remove=max_lag)
 
-# Scale or normalise the targets
-if scaler_type == 'ss':
-        scaler = MinMaxScaler(feature_range=(0,1))
-elif scaler_type == 'minmax':
-        scaler = ss()
-else:
-        assert False, 'not a valid scaler'
-
-y_s = scaler.fit_transform(np.vstack(y_raw))
-
 # Train and test data
 N, D = np.shape(X)
 start_train = 0
@@ -60,7 +48,7 @@ end_train = 1000
 end_test = 1500
 N_train = abs(end_train - start_train)
 
-X_train, y_train = X[start_train:end_train], y_s[start_train:end_train]
+X_train, y_train = X[start_train:end_train], y_raw[start_train:end_train]
 X_test, y_test = X[start_train:end_test], y_raw[start_train:end_test]
 
 date_time = date_time[start_train:end_test]
@@ -80,23 +68,18 @@ ls = [7, 64, 7, 7.60, 7, 7, 7, 123, 76, 78]
 
 # Kernels
 se = 1**2 * RBF(length_scale=ls, length_scale_bounds=(0.1, 200))
-# se = 1**2 * RBF(length_scale=ls, length_scale_bounds=(0.05, 200))
-wn = WhiteKernel(noise_level=0.61**2, noise_level_bounds=(1e-4, 1))
+wn = WhiteKernel(noise_level=0.61**2, noise_level_bounds=(1e-5, 1))
 
 kernel = se + wn
 
 dpgp = DPGP(X_train, y_train, init_K=7, kernel=kernel)
-dpgp.train()
+dpgp.train(pseudo_sparse=True)
 
 # predictions
-mu_dpgp, std_dpgp = dpgp.predict(X_test)
+mu, std = dpgp.predict(X_test)
 
 # The estimated GP hyperparameters
 print('\nEstimated hyper DRGP: ', dpgp.kernel_)
-
-# Unormalise predictions
-mu = scaler.inverse_transform(np.vstack(mu_dpgp))
-std= scaler.inverse_transform(np.vstack(std_dpgp))
 
 #-----------------------------------------------------------------------------
 # REGRESSION PLOT
@@ -111,13 +94,13 @@ plt.rc('ytick', labelsize=14)
 fig.autofmt_xdate()
 
 ax.fill_between(date_time,
-                mu[:,0] + 3*std[:,0], mu[:,0] - 3*std[:,0],
+                mu + 3*std, mu - 3*std,
                 alpha=0.5, color='pink',
                 label='Confidence \nBounds (DPGP)')
 ax.plot(date_time, y_raw, color='grey', label='Raw')
 ax.plot(date_time, y_rect, color='blue', label='Filtered')
 ax.plot(date_time, mu, color="red", linewidth = 2.5, label="DPGP")
-plt.axvline(date_time[N_train], linestyle='--', linewidth=3,
+plt.axvline(date_time[N_train-1], linestyle='--', linewidth=3,
             color='black')
 ax.set_xlabel(" Date-time", fontsize=14)
 ax.set_ylabel(" Fault density", fontsize=14)
@@ -126,24 +109,24 @@ plt.legend(loc=0, prop={"size":18}, facecolor="white", framealpha=1.0)
 # ----------------------------------------------------------------------------
 # PCA and PLOTS
 # ----------------------------------------------------------------------------
-# pca = PCA(n_components=2)
-# pca.fit(X)
-# Xt = pca.transform(X)
+pca = PCA(n_components=2)
+pca.fit(X)
+Xt = pca.transform(X)
 
-# # PCA on training data
-# Xt_train = pca.transform(X_train)
+# PCA on training data
+Xt_train = pca.transform(X_train)
 
-# # PCA on test data
-# Xt_test = pca.transform(X_test)
+# PCA on test data
+Xt_test = pca.transform(X_test)
     
-# # Plot at each 1000 points
-# fig, ax = plt.subplots()
-# ax.plot(Xt[:, 0], Xt[:, 1], 'o', markersize=0.9, c='grey',
-#         label='Available training data', alpha=0.9)
-# ax.plot(Xt_train[:, 0], Xt_train[:, 1], 'o', markersize=8.9, c='orange',
-#         label='Used Training data', alpha=0.6)
-# ax.plot(Xt_test[:,0], Xt_test[:,1], '*', markersize=5.5,
-#         c='purple', label='test data', alpha=0.6)
-# ax.set_xlim(np.min(Xt[:, 0]), np.max(np.max(Xt[:, 0])))
-# ax.set_ylim(np.min(Xt[:, 0]), np.max(np.max(Xt[:, 1])))
+# Plot at each 1000 points
+fig, ax = plt.subplots()
+ax.plot(Xt[:, 0], Xt[:, 1], 'o', markersize=0.9, c='grey',
+        label='Available training data', alpha=0.9)
+ax.plot(Xt_train[:, 0], Xt_train[:, 1], 'o', markersize=8.9, c='orange',
+        label='Used Training data', alpha=0.6)
+ax.plot(Xt_test[:,0], Xt_test[:,1], '*', markersize=5.5,
+        c='purple', label='test data', alpha=0.6)
+ax.set_xlim(np.min(Xt[:, 0]), np.max(np.max(Xt[:, 0])))
+ax.set_ylim(np.min(Xt[:, 0]), np.max(np.max(Xt[:, 1])))
 plt.show()

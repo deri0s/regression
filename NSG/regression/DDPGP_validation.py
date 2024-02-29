@@ -59,9 +59,9 @@ date_time = dpm.adjust_time_lag(y_df['Time stamp'].values,
                                 to_remove=max_lag)
 
 # Scale or normalise the targets
-if scaler_type == 'ss':
+if scaler_type == 'minmax':
         scaler = MinMaxScaler(feature_range=(0,1))
-elif scaler_type == 'minmax':
+elif scaler_type == 'ss':
         scaler = ss()
 else:
         assert False, 'not a valid scaler'
@@ -71,10 +71,10 @@ y_s = scaler.fit_transform(np.vstack(y_raw))
 # Train and test data
 N, D = np.shape(X)
 # To ensure the first 2 esperts got the first continous region
-start_train = 30
+start_train = 0
 # start_train = y_df[y_df['Time stamp'] == '2020-08-15'].index[0]
 end_train = y_df[y_df['Time stamp'] == '2020-08-30'].index[0]
-N_train = abs(end_train - start_train)
+N_train = int(abs(end_train - start_train))
 
 X_train, y_train = X[start_train:end_train], y_s[start_train:end_train]
 X_test, y_test = X[start_train:end_train], y_raw[start_train:end_train]
@@ -105,8 +105,8 @@ dpgp.train(pseudo_sparse=True)
 # save trained model
 import pickle
 
-with open('ddpgp.pkl','wb') as f:
-    pickle.dump(dpgp,f)
+# with open('ddpgp_N'+str(N_train)+'_scaler_'+scaler_type+'.pkl','wb') as f:
+#     pickle.dump(dpgp,f)
 
 # predictions
 mu_dpgp, std_dpgp, betas = dpgp.predict(X_test)
@@ -118,14 +118,12 @@ std= scaler.inverse_transform(np.vstack(std_dpgp))
 #-----------------------------------------------------------------------------
 # Plot beta
 #-----------------------------------------------------------------------------
-c = ['red', 'orange', 'blue', 'black', 'green', 'cyan', 'darkred', 'pink',
-     'gray', 'magenta','lightgreen', 'darkblue', 'yellow']
 
 step = int(len(X_train)/N_gps)
 fig, ax = plt.subplots()
 fig.autofmt_xdate()
 for k in range(N_gps):
-    ax.plot(date_time, betas[:,k], color=c[k], linewidth=2,
+    ax.plot(date_time, betas[:,k], color=dpgp.c[k], linewidth=2,
             label='Beta: '+str(k))
     plt.axvline(date_time[int(k*step)], linestyle='--', linewidth=2,
                 color='black')

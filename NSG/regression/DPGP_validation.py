@@ -60,9 +60,9 @@ date_time = dpm.adjust_time_lag(y_df['Time stamp'].values,
 
 # Scale or normalise the targets
 if scaler_type == 'ss':
-        scaler = MinMaxScaler(feature_range=(0,1))
-elif scaler_type == 'minmax':
         scaler = ss()
+elif scaler_type == 'minmax':
+        scaler = MinMaxScaler(feature_range=(0,1))
 else:
         assert False, 'not a valid scaler'
 
