@@ -18,10 +18,10 @@ file = paths.get_data_path('NSG_data.xlsx')
 X_df = pd.read_excel(file, sheet_name='X_training_stand')
 y_df = pd.read_excel(file, sheet_name='y_training')
 y_raw_df = pd.read_excel(file, sheet_name='y_raw_training')
-t_df = pd.read_excel(file, sheet_name='time')
+timelags_df = pd.read_excel(file, sheet_name='time')
 
 # Pre-Process training data
-X, y0, N0, D, max_lag, time_lags = dpm.align_arrays(X_df, y_df, t_df)
+X, y0, N0, D, max_lag, time_lags = dpm.align_arrays(X_df, y_df, timelags_df)
 
 # Replace zero values with interpolation
 zeros = y_raw_df.loc[y_raw_df['raw_furnace_faults'] < 1e-2]

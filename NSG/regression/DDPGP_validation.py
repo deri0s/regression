@@ -29,8 +29,6 @@ NSG data
 """
 # NSG post processes data location
 file = paths.get_data_path('NSG_data.xlsx')
-stand = 1
-scaler_type = 'ss'
 
 # Training df
 X_df = pd.read_excel(file, sheet_name='X_training_stand')
@@ -58,25 +56,14 @@ date_time = dpm.adjust_time_lag(y_df['Time stamp'].values,
                                 shift=0,
                                 to_remove=max_lag)
 
-# Scale or normalise the targets
-if scaler_type == 'minmax':
-        scaler = MinMaxScaler(feature_range=(0,1))
-elif scaler_type == 'ss':
-        scaler = ss()
-else:
-        assert False, 'not a valid scaler'
-
-y_s = scaler.fit_transform(np.vstack(y_raw))
-
 # Train and test data
 N, D = np.shape(X)
-# To ensure the first 2 esperts got the first continous region
 start_train = 0
 # start_train = y_df[y_df['Time stamp'] == '2020-08-15'].index[0]
 end_train = y_df[y_df['Time stamp'] == '2020-08-30'].index[0]
 N_train = int(abs(end_train - start_train))
 
-X_train, y_train = X[start_train:end_train], y_s[start_train:end_train]
+X_train, y_train = X[start_train:end_train], y_raw[start_train:end_train]
 X_test, y_test = X[start_train:end_train], y_raw[start_train:end_train]
 
 date_time = date_time[start_train:end_train]
@@ -98,7 +85,7 @@ wn = WhiteKernel(noise_level=0.61**2, noise_level_bounds=(1e-5, 1))
 
 kernel = se + wn
 
-N_gps = 5
+N_gps = 2
 dpgp = DDPGP(X_train, y_train, N_GPs=N_gps, init_K=7, kernel=kernel)
 dpgp.train(pseudo_sparse=True)
 
@@ -109,11 +96,7 @@ import pickle
 #     pickle.dump(dpgp,f)
 
 # predictions
-mu_dpgp, std_dpgp, betas = dpgp.predict(X_test)
-
-# Unormalise predictions
-mu = scaler.inverse_transform(np.vstack(mu_dpgp))
-std= scaler.inverse_transform(np.vstack(std_dpgp))
+mu, std, betas = dpgp.predict(X_test)
 
 #-----------------------------------------------------------------------------
 # Plot beta
@@ -146,12 +129,12 @@ plt.rc('ytick', labelsize=14)
 fig.autofmt_xdate()
 
 ax.fill_between(date_time,
-                mu[:,0] + 3*std[:,0], mu[:,0] - 3*std[:,0],
+                mu + 3*std, mu - 3*std,
                 alpha=0.5, color='lightcoral',
                 label='Confidence \nBounds (DPGP)')
 ax.plot(date_time, y_raw, color='grey', label='Raw')
 ax.plot(date_time, y_rect, color='blue', label='Filtered')
-ax.plot(date_time, mu, color="red", linewidth = 2.5, label="DPGP")
+ax.plot(date_time, mu, color="red", linewidth = 2.5, label="DDPGP")
 ax.set_xlabel(" Date-time", fontsize=14)
 ax.set_ylabel(" Fault density", fontsize=14)
 plt.legend(loc=0, prop={"size":18}, facecolor="white", framealpha=1.0)

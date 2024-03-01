@@ -2,12 +2,7 @@ import paths
 import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
-from sklearn.gaussian_process.kernels import RBF, WhiteKernel
-from sklearn.preprocessing import StandardScaler as ss
-from sklearn.preprocessing import MinMaxScaler
-from BayesianNonparametrics.DDPGP import DistributedDPGP as DDPGP
 from NSG import data_processing_methods as dpm
-from sklearn.decomposition import PCA
 
 """
 MODEL VALIDATION
@@ -29,8 +24,6 @@ NSG data
 """
 # NSG post processes data location
 file = paths.get_data_path('NSG_data.xlsx')
-stand = 1
-scaler_type = 'ss'
 
 # Training df
 X_df = pd.read_excel(file, sheet_name='X_training_stand')
@@ -58,36 +51,39 @@ date_time = dpm.adjust_time_lag(y_df['Time stamp'].values,
                                 shift=0,
                                 to_remove=max_lag)
 
-# Scale or normalise the targets
-if scaler_type == 'ss':
-        scaler = MinMaxScaler(feature_range=(0,1))
-elif scaler_type == 'minmax':
-        scaler = ss()
-else:
-        assert False, 'not a valid scaler'
-
-y_s = scaler.fit_transform(np.vstack(y_raw))
-
 # Train and test data
 N, D = np.shape(X)
 # To ensure the first 2 esperts got the first continous region
 start_train = 0
-end_train = N
-N_train = int(N*0.8)
-# N_train = abs(end_train - start_train)
+end_test = N
+N_train = int(N*0.82)
 
-X_train, y_train = X[start_train:end_train], y_s[start_train:end_train]
-X_test, y_test = X[start_train:end_train], y_raw[start_train:end_train]
 
-date_time = date_time[start_train:end_train]
-y_raw = y_raw[start_train:end_train]
-y_rect = y0[start_train:end_train]
+X_train, y_train = X[start_train:N_train], y_raw[start_train:N_train]
+X_test, y_test = X[start_train:end_test], y_raw[start_train:end_test]
 
-N_gps = 20
+date_time = date_time[start_train:end_test]
+y_raw = y_raw[start_train:end_test]
+y_rect = y0[start_train:end_test]
+
+N_gps = 22
 step = int(len(X_train)/N_gps)
+
+"""
+PLOT
+"""
+
+# Region where test data is similar to the training data
+# similar = range(21000,21500)
+similar = range(21500, N)
+
 fig, ax = plt.subplots()
 fig.autofmt_xdate()
 ax.plot(date_time, y_raw, color='grey', label='Raw')
+plt.fill_between(date_time[:N_train], 50, color='lightgreen', alpha=0.6,
+                 label='training')
+plt.fill_between(date_time[similar], 50, color='lightgreen', alpha=0.6,
+                 label='test data similar to training')
 for k in range(N_gps):
     plt.axvline(date_time[int(k*step)], linestyle='--', linewidth=2,
                 color='black', label='div '+str(k))
@@ -96,6 +92,35 @@ ax.set_title('Predictive contribution of robust GP experts')
 ax.set_xlabel('Date-time')
 ax.set_ylabel('Predictive contribution')
 # plt.legend(loc=0, prop={"size":18}, facecolor="white", framealpha=1.0)
-plt.show()
 
 print('N-train: ', N_train, ' N: ', N, ' N-test: ', int(N - N_train),' step: ', step, ' sparse-step: ', step/2)
+
+# ----------------------------------------------------------------------------
+# PCA and PLOTS
+# ----------------------------------------------------------------------------
+from sklearn.decomposition import PCA
+
+pca = PCA(n_components=2)
+pca.fit(X)
+Xt = pca.transform(X)
+
+# PCA on training data
+Xt_train = pca.transform(X_train)
+
+# PCA on test data
+Xt_test = pca.transform(X_test)
+    
+# Plot at each 1000 points
+step
+fig, ax = plt.subplots()
+ax.plot(Xt[:, 0], Xt[:, 1], 'o', markersize=0.9, c='grey',
+        label='Available training data', alpha=0.9)
+ax.plot(Xt_train[:, 0], Xt_train[:, 1], 'o', markersize=8.9, c='orange',
+        label='Used Training data', alpha=0.6)
+ax.plot(Xt_test[:,0], Xt_test[:,1], '*', markersize=5.5,
+        c='purple', label='test data', alpha=0.6)
+ax.plot(Xt_test[similar,0], Xt_test[similar,1], '*', markersize=5.5,
+        c='limegreen', label='similar', alpha=0.6)
+ax.set_xlim(np.min(Xt[:, 0]), np.max(np.max(Xt[:, 0])))
+ax.set_ylim(np.min(Xt[:, 0]), np.max(np.max(Xt[:, 1])))
+plt.show()
