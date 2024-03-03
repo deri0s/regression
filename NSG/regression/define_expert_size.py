@@ -58,7 +58,6 @@ start_train = 0
 end_test = N
 N_train = int(N*0.82)
 
-
 X_train, y_train = X[start_train:N_train], y_raw[start_train:N_train]
 X_test, y_test = X[start_train:end_test], y_raw[start_train:end_test]
 
@@ -66,16 +65,34 @@ date_time = date_time[start_train:end_test]
 y_raw = y_raw[start_train:end_test]
 y_rect = y0[start_train:end_test]
 
-N_gps = 22
+# temp drop noisy region
+start_drop = y_df[y_df['Time stamp'] == '2020-08-30'].index[0]
+end_drop = y_df[y_df['Time stamp'] == '2020-09-09'].index[0]
+remove = np.arange(start_drop, end_drop)
+
+print(np.shape(X_train))
+# print(np.arange(start_drop, end_drop))
+
+X_train = np.delete(X_train, remove, 0)
+y_train = np.delete(y_train, remove, 0)
+X_test = np.delete(X_test, remove, 0)
+y_test = np.delete(y_test, remove, 0)
+date_time = np.delete(date_time, remove, 0)
+y_raw = np.delete(y_raw, remove, 0)
+y_rect = np.delete(y_rect, remove, 0)
+
+N_gps = 21
 step = int(len(X_train)/N_gps)
+print('N-gps: ', N_gps, ' step: ', step, ' N: ',len(y_raw), '22xstep: ', N_gps*step,
+      'remove len: ', len(remove))
 
 """
 PLOT
 """
 
 # Region where test data is similar to the training data
-# similar = range(21000,21500)
-similar = range(21500, N)
+similar = range(21000-len(remove),21500-len(remove))
+# similar = range(21500, N)
 
 fig, ax = plt.subplots()
 fig.autofmt_xdate()
@@ -95,32 +112,32 @@ ax.set_ylabel('Predictive contribution')
 
 print('N-train: ', N_train, ' N: ', N, ' N-test: ', int(N - N_train),' step: ', step, ' sparse-step: ', step/2)
 
-# ----------------------------------------------------------------------------
-# PCA and PLOTS
-# ----------------------------------------------------------------------------
-from sklearn.decomposition import PCA
+# # ----------------------------------------------------------------------------
+# # PCA and PLOTS
+# # ----------------------------------------------------------------------------
+# from sklearn.decomposition import PCA
 
-pca = PCA(n_components=2)
-pca.fit(X)
-Xt = pca.transform(X)
+# pca = PCA(n_components=2)
+# pca.fit(X)
+# Xt = pca.transform(X)
 
-# PCA on training data
-Xt_train = pca.transform(X_train)
+# # PCA on training data
+# Xt_train = pca.transform(X_train)
 
-# PCA on test data
-Xt_test = pca.transform(X_test)
+# # PCA on test data
+# Xt_test = pca.transform(X_test)
     
-# Plot at each 1000 points
-step
-fig, ax = plt.subplots()
-ax.plot(Xt[:, 0], Xt[:, 1], 'o', markersize=0.9, c='grey',
-        label='Available training data', alpha=0.9)
-ax.plot(Xt_train[:, 0], Xt_train[:, 1], 'o', markersize=8.9, c='orange',
-        label='Used Training data', alpha=0.6)
-ax.plot(Xt_test[:,0], Xt_test[:,1], '*', markersize=5.5,
-        c='purple', label='test data', alpha=0.6)
-ax.plot(Xt_test[similar,0], Xt_test[similar,1], '*', markersize=5.5,
-        c='limegreen', label='similar', alpha=0.6)
-ax.set_xlim(np.min(Xt[:, 0]), np.max(np.max(Xt[:, 0])))
-ax.set_ylim(np.min(Xt[:, 0]), np.max(np.max(Xt[:, 1])))
+# # Plot at each 1000 points
+# step
+# fig, ax = plt.subplots()
+# ax.plot(Xt[:, 0], Xt[:, 1], 'o', markersize=0.9, c='grey',
+#         label='Available training data', alpha=0.9)
+# ax.plot(Xt_train[:, 0], Xt_train[:, 1], 'o', markersize=8.9, c='orange',
+#         label='Used Training data', alpha=0.6)
+# ax.plot(Xt_test[:,0], Xt_test[:,1], '*', markersize=5.5,
+#         c='purple', label='test data', alpha=0.6)
+# ax.plot(Xt_test[similar,0], Xt_test[similar,1], '*', markersize=5.5,
+#         c='limegreen', label='similar', alpha=0.6)
+# ax.set_xlim(np.min(Xt[:, 0]), np.max(np.max(Xt[:, 0])))
+# ax.set_ylim(np.min(Xt[:, 0]), np.max(np.max(Xt[:, 1])))
 plt.show()

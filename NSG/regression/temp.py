@@ -83,7 +83,7 @@ ax.fill_between(date_time,
                 label='Confidence \nBounds (DPGP)')
 ax.plot(date_time, y_raw, color='grey', label='Raw')
 # ax.plot(y_raw, 'o', color='grey', label='Raw')
-# ax.plot(date_time, y_rect, color='blue', label='Filtered')
+ax.plot(date_time, y_rect, color='blue', label='Filtered')
 ax.plot(date_time, mu, color="red", linewidth = 2.5, label="DPGP")
 ax.set_ylabel(" Fault density", fontsize=14)
 plt.legend(loc=0, prop={"size":18}, facecolor="white", framealpha=1.0)
